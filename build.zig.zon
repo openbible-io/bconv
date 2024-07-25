@@ -1,0 +1,18 @@
+.{
+    .name = "content",
+    .version = "0.0.1",
+    .dependencies = .{ .zigcli = .{
+        .url = "https://github.com/jiacai2050/zigcli/archive/54d095c0a53669b2f2ff4e173e8c22f47d496eda.tar.gz",
+        .hash = "1220e8fb37224ab6ee9c575129594a808643b548596d63dd8b87cb42e22a7eed9f51",
+    }, .@"zig-xml" = .{
+        .url = "https://github.com/ianprime0509/zig-xml/archive/0747fa10b28ade9a8516bc5b122dcad997bd8fa7.tar.gz",
+        .hash = "1220fcb9b8da8bcfdaa18c81678c6b5cf41d63a2bf9fde7551b4390279cc473a2520",
+    } },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}

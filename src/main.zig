@@ -2,17 +2,13 @@ const std = @import("std");
 const simargs = @import("simargs");
 const usfm = @import("./usfm/mod.zig");
 const step = @import("./step.zig");
-const models = @import("./bible.zig");
+const Bible = @import("./Bible.zig");
+const xml = @import("./xml.zig");
 
-const Bible = models.Bible;
 pub const std_options = .{
     .log_level = .warn,
 };
 const Allocator = std.mem.Allocator;
-
-pub fn writeXml(bible: Bible, writer: anytype) @TypeOf(writer).Error!void {
-    std.io.Writer
-}
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
     step.parseTxt(allocator, fname, out) catch |e| {
@@ -45,8 +41,8 @@ pub fn main() !void {
     defer thread_pool.deinit();
     var wg = std.Thread.WaitGroup{};
 
-    var bible = Bible{};
-    defer bible.deinit(allocator);
+    var bible = Bible.init(allocator);
+    defer bible.deinit();
 
     for (opt.positional_args.items) |fname| {
         thread_pool.spawnWg(&wg, parseBible, .{ allocator, fname, &bible });
@@ -60,23 +56,18 @@ pub fn main() !void {
 
     var iter = bible.books.iterator();
     while (iter.next()) |kv| {
-        if (kv.value.len == 0) continue;
-
-        const fname = try std.fmt.allocPrint(
-            allocator,
-            "{s}{c}{s}.xml",
-            .{ opt.args.output_dir, std.fs.path.sep, @tagName(kv.key) },
-        );
+        const fname = try std.fmt.allocPrint(allocator, "{s}.xml", .{ @tagName(kv.key_ptr.*) });
         defer allocator.free(fname);
 
         const file = try outdir.createFile(fname, .{});
         defer file.close();
-
-        try bible.writeXml(file.writer());
+        var writer: xml.Writer(std.fs.File.Writer) = .{ .w = file.writer() };
+        try kv.value_ptr.writeXml(&writer, kv.key_ptr.*);
     }
 }
 
 test {
     _ = Bible;
+    _ = step;
     // _ = usfm;
 }

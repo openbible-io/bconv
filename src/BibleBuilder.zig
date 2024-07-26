@@ -1,81 +1,57 @@
 books: Books,
-text_elements: std.ArrayListUnmanaged(Bible.TextElement),
+books_mutex: std.Thread.Mutex = .{},
 
-pub const Books = std.AutoArrayHashMap(Bible.BookName, Chapters);
-pub const Chapters = std.ArrayListUnmanaged(Verses);
-// pub const Chapters = std.AutoArrayHashMapUnmanaged(u8, *Verses);
-// pub const Verses = std.AutoArrayHashMapUnmanaged(u8, *TextElements);
+pub const Books = std.AutoArrayHashMap(Bible.BookName, Elements);
+pub const Elements = std.AutoArrayHashMapUnmanaged(u32, Bible.Element);
 
-pub fn addText(self: *@This(), ref: Bible.VerseReference, text: Bible.TextElement) !void {
-    var gop_chapters = self.books.get(ref.book);
-    const allocator = self.allocator;
+pub fn addText(self: *@This(), book: Bible.BookName, order: u32, text: Bible.Element) !void {
+    const allocator = self.books.allocator;
 
-    const gop_verses = try gop_chapters.getOrPut(allocator, ref.chapter);
-    if (!gop_verses.found_existing) {
-        gop_verses.value_ptr.* = try allocator.create(Verses);
-        gop_verses.value_ptr.*.* = .{};
-        // std.debug.print("sad {s} {d}\n", .{ @tagName(ref.book), ref.chapter });
-    } else {
-        std.debug.print("YAY\n", .{});
-    }
+    self.books_mutex.lock();
+    const gop_book = try self.books.getOrPut(book);
+    if (!gop_book.found_existing) gop_book.value_ptr.* = Elements{};
+    self.books_mutex.unlock();
 
-    const gop_text_elements = try gop_verses.value_ptr.*.getOrPut(allocator, ref.verse);
-    if (!gop_text_elements.found_existing) {
-        gop_text_elements.value_ptr.* = try allocator.create(TextElements);
-        gop_text_elements.value_ptr.*.* = .{};
-    }
-
-    try gop_text_elements.value_ptr.*.append(allocator, text);
+    try gop_book.value_ptr.putNoClobber(allocator, order, text);
 }
 
 pub fn toOwned(self: *@This()) !Bible {
     std.debug.print("size {d} {d}\n", .{ @sizeOf(Books), @sizeOf(Bible) });
-    const allocator = self.allocator;
-    var res = Bible{};
+    const allocator = self.books.allocator;
+    var res = Bible.init(allocator);
 
     var iter = self.books.iterator();
     while (iter.next()) |kv| {
-        var verses_res = std.ArrayList(Bible.Verses).init(allocator);
-        defer verses_res.deinit();
+        std.debug.print("{s} {d}\n", .{ @tagName(kv.key_ptr.*), kv.value_ptr.*.entries.len });
 
-        const chapters: Chapters = kv.value.*;
-        const chapter_keys = try sortedKeys(allocator, chapters);
-        defer chapter_keys.deinit();
+        const SortCtx = struct {
+            refs: []u32,
 
-        std.debug.print("{s} {d}\n", .{ @tagName(kv.key), chapter_keys.items.len });
-        for (chapter_keys.items) |c_num| {
-            var verse_res = std.ArrayList(Bible.TextElement).init(allocator);
-            defer verse_res.deinit();
-
-            const verses: Verses = chapters.get(c_num).?.*;
-            const verses_keys = try sortedKeys(allocator, verses);
-            defer verses_keys.deinit();
-
-            for (verses_keys.items) |v_num| {
-                var unowned: TextElements = verses.get(v_num).?.*;
-                const text_elements: Bible.Verses = try unowned.toOwnedSlice(allocator);
-                try verse_res.appendSlice(text_elements);
+            pub fn lessThan(ctx: @This(), a_index: usize, b_index: usize) bool {
+                return ctx.refs[a_index] < ctx.refs[b_index];
             }
+        };
+        kv.value_ptr.sortUnstable(SortCtx{.refs = kv.value_ptr.keys() });
 
-            try verses_res.append(try verse_res.toOwnedSlice());
-        }
+        // TODO: lil ugly can't move one field of MultiArrayList
+        const elements = try allocator.dupe(Bible.Element, kv.value_ptr.*.entries.items(.value));
+        defer kv.value_ptr.clearAndFree(allocator);
 
-        res.books.set(kv.key, try verses_res.toOwnedSlice());
+        try res.books.putNoClobber(kv.key_ptr.*, .{ .elements = elements });
     }
+    self.books.clearAndFree();
     return res;
+}
+
+pub fn init(allocator: Allocator) @This() {
+    return .{ .books = Books.init(allocator) };
 }
 
 pub fn deinit(self: *@This()) void {
-    _ = self;
-}
-
-fn sortedKeys(allocator: Allocator, array_hash_unmanaged: anytype) !std.ArrayList(u8) {
-    var res = std.ArrayList(u8).init(allocator);
-
-    for (array_hash_unmanaged.keys()) |k| try res.append(k);
-    std.mem.sort(u8, res.items, {}, comptime std.sort.asc(u8));
-
-    return res;
+    const allocator = self.books.allocator;
+    var iter = self.books.iterator();
+    while (iter.next()) |kv| kv.value_ptr.deinit(allocator);
+    self.books.deinit();
 }
 
 const std = @import("std");

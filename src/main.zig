@@ -1,13 +1,18 @@
 const std = @import("std");
+const simargs = @import("simargs");
 const usfm = @import("./usfm/mod.zig");
 const step = @import("./step.zig");
-const simargs = @import("simargs");
-const Bible = @import("./Bible.zig");
+const models = @import("./bible.zig");
 
+const Bible = models.Bible;
 pub const std_options = .{
     .log_level = .warn,
 };
 const Allocator = std.mem.Allocator;
+
+pub fn writeXml(bible: Bible, writer: anytype) @TypeOf(writer).Error!void {
+    std.io.Writer
+}
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
     step.parseTxt(allocator, fname, out) catch |e| {
@@ -17,11 +22,11 @@ fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    // defer arena.deinit();
-    // var gpa = std.heap.ThreadSafeAllocator{ .child_allocator = arena.allocator() };
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    var gpa = std.heap.ThreadSafeAllocator{ .child_allocator = arena.allocator() };
     const allocator = gpa.allocator();
 
     var opt = try simargs.parse(allocator, struct {
@@ -40,8 +45,8 @@ pub fn main() !void {
     defer thread_pool.deinit();
     var wg = std.Thread.WaitGroup{};
 
-    var bible = Bible.init(allocator);
-    defer bible.deinit();
+    var bible = Bible{};
+    defer bible.deinit(allocator);
 
     for (opt.positional_args.items) |fname| {
         thread_pool.spawnWg(&wg, parseBible, .{ allocator, fname, &bible });
@@ -55,10 +60,12 @@ pub fn main() !void {
 
     var iter = bible.books.iterator();
     while (iter.next()) |kv| {
+        if (kv.value.len == 0) continue;
+
         const fname = try std.fmt.allocPrint(
             allocator,
             "{s}{c}{s}.xml",
-            .{ opt.args.output_dir, std.fs.path.sep, @tagName(kv.key_ptr.*) },
+            .{ opt.args.output_dir, std.fs.path.sep, @tagName(kv.key) },
         );
         defer allocator.free(fname);
 

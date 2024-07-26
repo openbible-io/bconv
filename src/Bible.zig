@@ -1,110 +1,209 @@
 books: Books,
-books_mutex: std.Thread.Mutex = .{},
 
-pub fn writeXml(self: @This(), writer: anytype) @TypeOf(writer).Error!void {
-    try writer.writeAll(
-        \\<?xml version="1.0" encoding="UTF-8"?>
-        \\<openbible>
-        // xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        // xsi:noNamespaceSchemaLocation="shiporder.xsd"
-    );
-    var iter = self.books.iterator();
-    while (iter.next()) |kv| {
-        const book_name = @tagName(kv.key_ptr.*);
-        try writer.print("\t<book id=\"{s}\">", .{ book_name });
-        try writer.writeAll("\t</book>");
-    }
-    try writer.writeAll("</openbible>");
+pub fn init(allocator: Allocator) @This() {
+    return .{ .books = Books.init(allocator) };
 }
 
-pub const Books = std.AutoArrayHashMap(BookName, *Chapters);
-pub const Chapters = []const Verses;
-pub const Verses = []const Text;
-pub const Text = union(enum) {
+pub fn deinit(self: *@This()) void {
+    self.books.deinit();
+}
+
+pub fn writeXml(self: @This(), writer: anytype) !void {
+    try writer.header("1.0", "UTF-8");
+    try writer.start("openbible", null);
+    // xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    // xsi:noNamespaceSchemaLocation="shiporder.xsd"
+    var iter = self.books.iterator();
+    while (iter.next()) |kv| {
+        try kv.value_ptr.*.writeXml(writer, kv.key_ptr.*);
+    }
+    try writer.end("openbible");
+}
+
+pub const Books =  std.AutoArrayHashMap(BookName, Book);
+pub const Book = struct {
+    chapters: []const Chapter,
+
+    pub fn writeXml(self: @This(), writer: anytype, name: BookName) !void {
+        try writer.start("book", &[_]KV{ .{ "id", @tagName(name) } });
+        for (self.chapters, 0..) |c, i| try c.writeXml(writer, i);
+        try writer.end("book");
+    }
+};
+pub const Chapter = struct {
+    verses: []const Verse,
+
+    pub fn writeXml(self: @This(), writer: anytype, n: usize) !void {
+        const buf: [8]u8 = undefined;
+        const n_str = try std.fmt.bufPrint(&buf, "{d}", .{ n });
+
+        try writer.start("chapter", &[_]KV{ .{ "n", n_str } });
+        for (self.verses, 0..) |v, i| try v.writeXml(i);
+        try writer.end("chapter");
+    }
+};
+pub const Verse = struct {
+    elements: []const Element,
+
+    pub fn writeXml(self: @This(), writer: anytype, n: usize) !void {
+        const buf: [8]u8 = undefined;
+        const n_str = try std.fmt.bufPrint(&buf, "{d}", .{ n });
+
+        try writer.start("verse", &[_]KV{ .{ "n", n_str } });
+        for (self.elements) |e| try e.writeXml();
+        try writer.end("verse");
+    }
+};
+pub const Element = union(enum) {
     w: Word,
     q: Quote,
     variant: Variant,
     p: Punctuation,
 
-    pub fn deinit(self: @This(), allocator: Allocator) void {
+    pub fn writeXml(self: @This(), writer: anytype) !void {
         switch (self) {
-            inline .w, .q, .variant => |v| v.deinit(allocator),
-            .p => {},
+            inline else => |e| try e.writeXml(writer),
         }
     }
-};
-pub const Word = struct {
-    id: []const u8,
-    morphemes: []const Morpheme,
 
-    pub const Morpheme = struct {
-        type: Type = .root,
-        code: []const u8 = "",
-        lemma: []const u8 = "",
-        text: []const u8,
+    pub const Word = struct {
+        ref: Reference,
+        morphemes: []const Morpheme,
 
-        pub const Type = enum {
-            root,
-            prefix,
-            suffix,
+        pub fn writeXml(self: @This(), writer: anytype) !void {
+            const buf: [16]u8 = undefined;
+            var stream = std.io.fixedBufferStream(&buf);
+            try self.ref.write(stream.writer());
+
+            try writer.start("w", &[_]KV{ .{ "id", stream.getWritten() } });
+            for (self.morphemes) |m| try m.writeXml(writer);
+            try writer.end("w");
+        }
+
+        pub const Reference = struct {
+            book: BookName,
+            chapter: u8,
+            verse: u8,
+            word: u8,
+        };
+
+        pub const Morpheme = struct {
+            type: Type = .root,
+            code: []const u8 = "",
+            strong: Strong,
+            text: []const u8,
+
+            pub fn writeXml(self: Morpheme, writer: anytype) !void {
+                const buf: [8]u8 = undefined;
+                var stream = std.io.fixedBufferStream(&buf);
+                try self.strong.write(stream.writer());
+
+                try writer.start("m", &[_]KV{
+                    .{ "type", self.type },
+                    .{ "code", self.code },
+                    .{ "strong", stream.getWritten() },
+                });
+                try writer.text(self.text);
+                try writer.end("m");
+            }
+
+            pub const Type = enum {
+                root,
+                prefix,
+                suffix,
+            };
+
+            pub const Strong = struct {
+                n: u16,
+                lang: Lang,
+                sense: u8,
+
+                pub const Lang = enum { hebrew, aramaic, greek };
+
+                pub fn parse(in: []const u8) !@This() {
+                    if (in.len == 0) return error.EmptyEStrong;
+                    const lang: Lang = switch (std.ascii.toLower(in[0])) {
+                        'h' => .hebrew,
+                        'a' => .aramaic,
+                        'g' => .greek,
+                        else => return error.InvalidLang,
+                    };
+                    var i: usize = 1;
+                    while (i < in.len and std.ascii.isDigit(in[i])) : (i += 1) {}
+                    const n = try std.fmt.parseInt(u16, in[1..i], 10);
+                    const sense = if (in.len == i + 1) in[i] else 0;
+
+                    return .{  .n = n, .lang = lang, .sense = sense };
+                }
+
+                pub fn write(self: @This(), writer: anytype) !void {
+                    try writer.writeByte(switch (self.lang) {
+                        .hebrew => 'H',
+                        .aramaic => 'A',
+                        .greek => 'G',
+                    });
+                    try writer.print("{d>04}", .{ self.n });
+                    if (self.sense != 0) try writer.writeByte(self.sense);
+                }
+            };
         };
     };
 
-    pub fn deinit(self: @This(), allocator: Allocator) void {
-        allocator.free(self.morphemes);
-    }
-};
-pub const Quote = struct {
-    by: []const u8,
-    children: []const Text,
+    pub const Quote = struct {
+        by: []const u8,
+        children: []const Element,
 
-    pub fn deinit(self: @This(), allocator: Allocator) void {
-        for (self.children) |*c| c.deinit(allocator);
-    }
-};
-pub const Variant = struct {
-    reason: ?Reason = null,
-    options: []const Option,
-
-    pub const Reason = enum {
-        spelling,
-        vowel,
-        pronunciation,
-        euphemism,
-    };
-
-    pub const Option = struct {
-        value: []const u8,
-        children: []const Text,
-    };
-
-    pub fn deinit(self: @This(), allocator: Allocator) void {
-        allocator.free(self.options);
-    }
-};
-pub const Punctuation = []const u8;
-
-pub fn init(allocator: std.mem.Allocator) @This() {
-    return .{ .books = Books.init(allocator) };
-}
-
-pub fn deinit(self: *@This()) void {
-    const allocator = self.books.allocator;
-    var iter = self.books.iterator();
-    while (iter.next()) |kv| {
-        const chapters: Chapters = kv.value_ptr.*.*;
-        for (chapters) |verses| {
-            for (verses) |texts| texts.deinit(allocator);
-            allocator.free(verses);
+        pub fn writeXml(self: @This(), writer: anytype) !void {
+            try writer.start("q", &[_]KV{ .{ "by", self.by } });
+            for (self.children) |c| try c.writeXml(writer);
+            try writer.end("q");
         }
-        allocator.free(chapters);
-    }
-    self.books.deinit();
-}
+    };
 
-const std = @import("std");
-const xml = @import("zig-xml");
-const Allocator = std.mem.Allocator;
+    pub const Variant = struct {
+        reason: ?Reason = null,
+        options: []const Option,
+
+        pub const Reason = enum {
+            spelling,
+            vowel,
+            pronunciation,
+            euphemism,
+        };
+
+        pub const Option = struct {
+            value: []const u8,
+            children: []const Element,
+
+            pub fn writeXml(self: @This(), writer: anytype) !void {
+                try writer.start("option", &[_]KV{ .{ "value", self.value } });
+                for (self.children) |c| try c.writeXml(writer);
+                try writer.end("option");
+            }
+        };
+
+        pub fn writeXml(self: @This(), writer: anytype) !void {
+            try writer.start("variant", &[_]KV{ .{ "reason", @tagName(self.reason) } });
+            for (self.options) |o| try o.writeXml(writer);
+            try writer.end("variant");
+        }
+    };
+
+    pub const Punctuation = struct {
+        text: []const u8,
+
+        pub fn writeXml(self: @This(), writer: anytype) !void {
+            try writer.start("p", null);
+            try writer.text(self.text);
+            try writer.end("p");
+        }
+    };
+};
+pub const VerseReference = struct {
+    book: BookName,
+    chapter: u8,
+    verse: u8,
+};
 
 pub const BookName = enum {
     gen,
@@ -348,7 +447,12 @@ pub const BookName = enum {
     }
 };
 
-test {
+test BookName {
     try std.testing.expectEqual(BookName.gen, try BookName.fromEnglish("Genesis"));
     try std.testing.expectEqual(BookName.@"1ch", try BookName.fromEnglish("1  Chronicles"));
 }
+
+const std = @import("std");
+const KV = @import("./xml.zig").KV;
+const Allocator = std.mem.Allocator;
+const tab = '\t';

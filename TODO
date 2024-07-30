@@ -1,5 +1,5 @@
-- [x] morphology  model
-- [ ] string pool
-	- [ ] leaks
-- [ ] variants (arena for children?)
-- [x] punctuation
+- [x] morphology
+- [x] string pool
+	- [x] leaks
+- [ ] variants
+- [ ] punctuation

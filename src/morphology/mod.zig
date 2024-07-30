@@ -2,6 +2,7 @@ pub const semitic = @import("./semitic.zig");
 pub const Hebrew = semitic.Hebrew;
 pub const Aramaic = semitic.Aramaic;
 
+/// TODO: manual tags to make size 4 instead of 6
 pub const Code = union(enum) {
     hebrew: Hebrew,
     aramaic: Aramaic,

@@ -36,6 +36,7 @@ pub const Book = struct {
     }
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
+        for (self.elements) |e| e.deinit(allocator);
         allocator.free(self.elements);
     }
 };
@@ -64,10 +65,11 @@ pub const Book = struct {
 //     }
 // };
 pub const Element = union(enum) {
-    w: Word,
-    q: Quote,
+    word: Word,
+    quote: Quote,
     variant: Variant,
-    p: Punctuation,
+    punctuation: Punctuation,
+    // fragment: Fragment,
 
     pub fn writeXml(self: @This(), writer: anytype) @TypeOf(writer.*).Error!void {
         switch (self) {
@@ -102,18 +104,18 @@ pub const Element = union(enum) {
 
         pub const Morpheme = struct {
             type: Type = .root,
-            code: morphology.Code,
-            strong: Strong,
+            code: ?morphology.Code,
+            strong: ?Strong,
             text: []const u8,
 
             pub fn writeXml(self: Morpheme, writer: anytype) !void {
                 var buf1: [8]u8 = undefined;
                 var stream1 = std.io.fixedBufferStream(&buf1);
-                try self.code.write(stream1.writer());
+                if (self.code) |c| try c.write(stream1.writer());
 
                 var buf2: [8]u8 = undefined;
                 var stream2 = std.io.fixedBufferStream(&buf2);
-                try self.strong.write(stream2.writer());
+                if (self.strong) |s| try s.write(stream2.writer());
 
                 try writer.start("m", &[_]KV{
                     .{ "type", @tagName(self.type) },
@@ -164,6 +166,10 @@ pub const Element = union(enum) {
                 }
             };
         };
+
+        pub fn deinit(self: @This(), allocator: Allocator) void {
+            allocator.free(self.morphemes);
+        }
     };
 
     pub const Quote = struct {
@@ -174,6 +180,10 @@ pub const Element = union(enum) {
             try writer.start("q", &[_]KV{ .{ "by", self.by } });
             for (self.children) |c| try c.writeXml(writer);
             try writer.end("q");
+        }
+
+        pub fn deinit(self: @This(), allocator: Allocator) void {
+            for (self.children) |c| c.deinit(allocator);
         }
     };
 
@@ -197,12 +207,22 @@ pub const Element = union(enum) {
                 for (self.children) |c| try c.writeXml(writer);
                 try writer.end("option");
             }
+
+            pub fn deinit(self: @This(), allocator: Allocator) void {
+                for (self.children) |c| c.deinit(allocator);
+                allocator.free(self.children);
+            }
         };
 
         pub fn writeXml(self: @This(), writer: anytype) !void {
             try writer.start("variant", &[_]KV{ .{ "reason", if (self.reason) |r| @tagName(r) else "" } });
             for (self.options) |o| try o.writeXml(writer);
             try writer.end("variant");
+        }
+
+        pub fn deinit(self: @This(), allocator: Allocator) void {
+            for (self.options) |o| o.deinit(allocator);
+            allocator.free(self.options);
         }
     };
 
@@ -215,6 +235,28 @@ pub const Element = union(enum) {
             try writer.end("p");
         }
     };
+
+    // pub const Fragment = struct {
+    //     children: []const Element,
+
+    //     pub fn writeXml(self: @This(), writer: anytype) !void {
+    //         for (self.children) |c| try c.writeXml(writer);
+    //     }
+
+    //     pub fn deinit(self: @This(), allocator: Allocator) void {
+    //         for (self.children) |c| c.deinit(allocator);
+    //     }
+    // };
+
+    pub fn deinit(self: @This(), allocator: Allocator) void {
+        switch (self) {
+            .word => |v| v.deinit(allocator),
+            .quote => |v| v.deinit(allocator),
+            .variant => |v| v.deinit(allocator),
+            // .fragment => |v| v.deinit(allocator),
+            .punctuation => {},
+        }
+    }
 };
 /// Book, chapter, verse
 pub const Bcv = struct {

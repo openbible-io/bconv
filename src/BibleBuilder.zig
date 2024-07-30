@@ -16,7 +16,7 @@ pub fn addText(self: *@This(), book: Bible.BookName, order: u32, text: Bible.Ele
 }
 
 pub fn toOwned(self: *@This()) !Bible {
-    std.debug.print("size {d} {d}\n", .{ @sizeOf(Books), @sizeOf(Bible) });
+    std.debug.print("size {d} {d}\n", .{ @sizeOf(Bible), @sizeOf(morph.Code) });
     const allocator = self.books.allocator;
     var res = Bible.init(allocator);
 
@@ -57,3 +57,4 @@ pub fn deinit(self: *@This()) void {
 const std = @import("std");
 const Bible = @import("./Bible.zig");
 const Allocator = std.mem.Allocator;
+const morph = @import("./morphology/mod.zig");

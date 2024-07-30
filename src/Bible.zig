@@ -102,19 +102,23 @@ pub const Element = union(enum) {
 
         pub const Morpheme = struct {
             type: Type = .root,
-            code: []const u8 = "",
+            code: morphology.Code,
             strong: Strong,
             text: []const u8,
 
             pub fn writeXml(self: Morpheme, writer: anytype) !void {
-                var buf: [8]u8 = undefined;
-                var stream = std.io.fixedBufferStream(&buf);
-                try self.strong.write(stream.writer());
+                var buf1: [8]u8 = undefined;
+                var stream1 = std.io.fixedBufferStream(&buf1);
+                try self.code.write(stream1.writer());
+
+                var buf2: [8]u8 = undefined;
+                var stream2 = std.io.fixedBufferStream(&buf2);
+                try self.strong.write(stream2.writer());
 
                 try writer.start("m", &[_]KV{
                     .{ "type", @tagName(self.type) },
-                    .{ "code", self.code },
-                    .{ "strong", stream.getWritten() },
+                    .{ "code", stream1.getWritten() },
+                    .{ "strong", stream2.getWritten() },
                 });
                 try writer.text(self.text);
                 try writer.end("m");
@@ -406,7 +410,7 @@ pub const BookName = enum(u8) {
         if (startsWith(n, "jud")) return .jud; // must come after judges
         if (startsWith(n, "rev")) return .rev;
 
-        std.debug.print("invalid book name '{s}' (normalized to '{s}')\n", .{ name, n });
+        // std.debug.print("invalid book name '{s}' (normalized to '{s}')\n", .{ name, n });
         return error.InvalidBookName;
     }
 
@@ -495,7 +499,12 @@ test BookName {
     try std.testing.expectEqual(BookName.@"1ch", try BookName.fromEnglish("1  Chronicles"));
 }
 
+test {
+    _ = morphology;
+}
+
 const std = @import("std");
 const KV = @import("./xml.zig").KV;
+const morphology = @import("./morphology/mod.zig");
 const Allocator = std.mem.Allocator;
 const tab = '\t';

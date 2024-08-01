@@ -2,7 +2,20 @@
 - [x] string pool
 	- [x] leaks
 - [x] variants
-	- [ ] align spelling variants with meaning variants
-	- [ ] manually fix TAHOT
-- [ ] punctuation
+	- [x] manually fix TAHOT
+- [ ] remove common prefix and suffixes of variants
+	- [ ] alignment
+- [x] punctuation
 - [ ] greek
+	- [ ] manually fix TAGNT
+- [ ] better xml writer
+	- [ ] override `fn write`
+		- [ ] state to know when to call fmtAttributeContent and fmtElementContent 
+		- [ ] @typeName for struct name
+	- [ ] comptime generic
+		- [ ] slices become children
+
+- reorg
+	- [ ] Bible folder
+		- [ ] reference namespace
+		- [ ] BookName -> Book.Name

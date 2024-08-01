@@ -13,22 +13,12 @@ pub fn deinit(self: *@This()) void {
     self.books.deinit();
 }
 
-// pub fn writeXml(self: @This(), writer: anytype) !void {
-//     try writer.header("1.0", "UTF-8");
-//     try writer.start("openbible", null);
-//     // xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-//     // xsi:noNamespaceSchemaLocation="shiporder.xsd"
-//     var iter = self.books.iterator();
-//     while (iter.next()) |kv| {
-//         try kv.value_ptr.*.writeXml(writer, kv.key_ptr.*);
-//     }
-//     try writer.end("openbible");
-// }
-
 pub const Book = struct {
     elements: []Element,
 
     pub fn writeXml(self: @This(), writer: anytype, name: BookName) !void {
+        // xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        // xsi:noNamespaceSchemaLocation="shiporder.xsd"
         try writer.header("1.0", "UTF-8");
         try writer.start("book", &[_]KV{ .{ "id", @tagName(name) } });
         for (self.elements) |e| try e.writeXml(writer);
@@ -40,42 +30,12 @@ pub const Book = struct {
         allocator.free(self.elements);
     }
 };
-// pub const Chapter = struct {
-//     verses: []const Verse,
-//
-//     pub fn writeXml(self: @This(), writer: anytype, n: usize) !void {
-//         var buf: [8]u8 = undefined;
-//         const n_str = try std.fmt.bufPrint(&buf, "{d}", .{ n });
-//
-//         try writer.start("chapter", &[_]KV{ .{ "n", n_str } });
-//         for (self.verses, 0..) |v, i| try v.writeXml(writer, i);
-//         try writer.end("chapter");
-//     }
-// };
-// pub const Verse = struct {
-//     elements: []const Element,
-//
-//     pub fn writeXml(self: @This(), writer: anytype, n: usize) !void {
-//         var buf: [8]u8 = undefined;
-//         const n_str = try std.fmt.bufPrint(&buf, "{d}", .{ n });
-//
-//         try writer.start("verse", &[_]KV{ .{ "n", n_str } });
-//         for (self.elements) |e| try e.writeXml(writer);
-//         try writer.end("verse");
-//     }
-// };
+
 pub const Element = union(enum) {
     word: Word,
     quote: Quote,
     variant: Variant,
     punctuation: Punctuation,
-    // fragment: Fragment,
-
-    pub fn writeXml(self: @This(), writer: anytype) (@TypeOf(writer.*).Error || error{NoSpaceLeft})!void {
-        switch (self) {
-            inline else => |e| try e.writeXml(writer),
-        }
-    }
 
     pub const Word = struct {
         ref: Reference,
@@ -108,24 +68,6 @@ pub const Element = union(enum) {
             strong: ?Strong = null,
             text: []const u8,
 
-            pub fn writeXml(self: Morpheme, writer: anytype) !void {
-                var buf1: [8]u8 = undefined;
-                var stream1 = std.io.fixedBufferStream(&buf1);
-                if (self.code) |c| try c.write(stream1.writer());
-
-                var buf2: [8]u8 = undefined;
-                var stream2 = std.io.fixedBufferStream(&buf2);
-                if (self.strong) |s| try s.write(stream2.writer());
-
-                try writer.start("m", &[_]KV{
-                    .{ "type", @tagName(self.type) },
-                    .{ "code", stream1.getWritten() },
-                    .{ "strong", stream2.getWritten() },
-                });
-                try writer.text(self.text);
-                try writer.end("m");
-            }
-
             pub const Type = enum {
                 root,
                 prefix,
@@ -140,12 +82,12 @@ pub const Element = union(enum) {
                 pub const Lang = enum { hebrew, aramaic, greek };
 
                 pub fn parse(in: []const u8) !@This() {
-                    if (in.len == 0) return error.EmptyEStrong;
+                    if (in.len == 0) return error.StrongEmpty;
                     const lang: @This().Lang = switch (std.ascii.toLower(in[0])) {
                         'h' => .hebrew,
                         'a' => .aramaic,
                         'g' => .greek,
-                        else => return error.InvalidLang,
+                        else => return error.StrongInvalidLang,
                     };
                     var i: usize = 1;
                     while (i < in.len and std.ascii.isDigit(in[i])) : (i += 1) {}
@@ -165,6 +107,24 @@ pub const Element = union(enum) {
                     if (self.sense != 0) try writer.writeByte(self.sense);
                 }
             };
+
+            pub fn writeXml(self: Morpheme, writer: anytype) !void {
+                var buf1: [8]u8 = undefined;
+                var stream1 = std.io.fixedBufferStream(&buf1);
+                if (self.code) |c| try c.write(stream1.writer());
+
+                var buf2: [8]u8 = undefined;
+                var stream2 = std.io.fixedBufferStream(&buf2);
+                if (self.strong) |s| try s.write(stream2.writer());
+
+                try writer.start("m", &[_]KV{
+                    .{ "type", @tagName(self.type) },
+                    .{ "code", stream1.getWritten() },
+                    .{ "strong", stream2.getWritten() },
+                });
+                try writer.text(self.text);
+                try writer.end("m");
+            }
         };
 
         pub fn deinit(self: @This(), allocator: Allocator) void {
@@ -188,25 +148,17 @@ pub const Element = union(enum) {
     };
 
     pub const Variant = struct {
-        reason: ?Reason = null,
         options: []Option,
-
-        pub const Reason = enum {
-            spelling,
-            vowel,
-            pronunciation,
-            euphemism,
-        };
 
         pub const Option = struct {
             source_set: SourceSet,
+            /// May not contain further variants. Enforced in `.normalize`.
             children: []Element,
 
             pub fn writeXml(self: @This(), writer: anytype) !void {
                 var buf: [32]u8 = undefined;
                 var stream = std.io.fixedBufferStream(&buf);
                 try self.source_set.write(stream.writer());
-
 
                 try writer.start("option", &[_]KV{
                     .{ "is_significant", if (self.source_set.is_significant) "true" else "false" },
@@ -294,7 +246,7 @@ pub const Element = union(enum) {
         };
 
         pub fn writeXml(self: @This(), writer: anytype) !void {
-            try writer.start("variant", &[_]KV{ .{ "reason", if (self.reason) |r| @tagName(r) else "" } });
+            try writer.start("variant", null);
             for (self.options) |o| try o.writeXml(writer);
             try writer.end("variant");
         }
@@ -315,18 +267,6 @@ pub const Element = union(enum) {
         }
     };
 
-    // pub const Fragment = struct {
-    //     children: []const Element,
-
-    //     pub fn writeXml(self: @This(), writer: anytype) !void {
-    //         for (self.children) |c| try c.writeXml(writer);
-    //     }
-
-    //     pub fn deinit(self: @This(), allocator: Allocator) void {
-    //         for (self.children) |c| c.deinit(allocator);
-    //     }
-    // };
-
     pub fn deinit(self: @This(), allocator: Allocator) void {
         switch (self) {
             .word => |v| v.deinit(allocator),
@@ -334,6 +274,12 @@ pub const Element = union(enum) {
             .variant => |v| v.deinit(allocator),
             // .fragment => |v| v.deinit(allocator),
             .punctuation => {},
+        }
+    }
+
+    pub fn writeXml(self: @This(), writer: anytype) (@TypeOf(writer.*).Error || error{NoSpaceLeft})!void {
+        switch (self) {
+            inline else => |e| try e.writeXml(writer),
         }
     }
 };

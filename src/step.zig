@@ -56,8 +56,6 @@ const Parser = struct {
     fname: []const u8 = "",
     lang: StringPools.Lang = .unknown,
 
-    const Options = std.ArrayList(Variant.Option);
-
     const Error = error{
 OutOfMemory,
 Overflow,
@@ -66,8 +64,6 @@ MorphInvalidLang,
 MorphMissingMorph,
 MorphMissingStrong,
 MorphMissingGrammar,
-EmptyEStrong,
-InvalidLang,
 MorphCodeMissingLang,
 SmallSemiticCode,
 MissingAdjectiveType,
@@ -96,6 +92,8 @@ VariantMissingLeftParen2,
 VariantMissingRightParen2,
 VariantMissingStrongGrammarDelimiter,
 CodepointTooLarge,
+StrongEmpty,
+StrongInvalidLang,
     };
 
     pub fn init(allocator: Allocator, fname: []const u8) @This() {
@@ -110,129 +108,92 @@ CodepointTooLarge,
         return try string_pools.global.getOrPutLang(text, self.lang);
     }
 
-    // fn parseVariant(self: *@This(), buf: []const u8, main: []const Bible.Element, acc: *Options) !void {
-    //     const is_spelling = main.len > 0;
-    //     const allocator = self.allocator;
-    //     if (buf.len == 0) return;
-    //     // cannot split on ¦ because 0xA6 appears in hebrew unicode like צֵ
-    //     // not sure if () can appear, so let's painfully iterate over utf8 codepoints
-    //     const view = try std.unicode.Utf8View.init(buf);
-    //     var iter = view.iterator();
-    //     var start: usize = 0;
-    //     while (iter.i < buf.len) {
-    //         consumeAny(&iter, &[_]u21{ ' ', '¦', ';' });
-    //         start = iter.i;
-    //
-    //         const source_set_end = findNextScalar(&iter, '=') orelse return error.VariantMissingEqual;
-    //         var source_set = try SourceSet.parse(buf[start..source_set_end]);
-    //         source_set.is_significant = !is_spelling;
-    //
-    //         if (is_spelling) {
-    //             iter.i += 1; // =
-    //             // B= עֲבָדִֽ֑ים\׃ ¦ P= עֲבָדִ֑ים\׃
-    //             // L= בְּעִירֹ֔/ה ¦ ;K= בְּעִירֹ/ה
-    //             // P= יִשְׂרָאֵֽל\ \פ
-    //             const text_end = findNextAny(&iter, &[_]u21{ '¦' }) orelse buf.len;
-    //             const text = std.mem.trim(u8, buf[source_set_end + 1..text_end], " ");
-    //             if (text.len == 0) break;
-    //             consumeAny(&iter, &[_]u21{ ' ', '¦', ';' });
-    //
-    //             // If each word has the same number of morphemes then we assume
-    //             // this spelling variant matches the main one and copy its strong + grammar.
-    //             var text_iter = std.mem.splitScalar(u8, text, '/');
-    //             var match = true;
-    //             var word_i: usize = 0;
-    //             var morph_i: usize = 0;
-    //             while (text_iter.next()) |next_morph| : (morph_i += 1) {
-    //                 const m = std.mem.trim(u8, next_morph, " ");
-    //                 if (m.len == 0) {
-    //                     word_i += 1;
-    //                     if (word_i >= main.len or main[word_i].word.morphemes.len != morph_i) {
-    //                         match = false;
-    //                         break;
-    //                     }
-    //                     morph_i = 0;
-    //                 }
-    //             }
-    //             if (word_i >= main.len or main[word_i].word.morphemes.len != morph_i) {
-    //                 match = false;
-    //             }
-    //
-    //             var words = std.ArrayList(Bible.Element).init(allocator);
-    //             errdefer words.deinit();
-    //
-    //             var morphemes = std.ArrayList(Word.Morpheme).init(allocator);
-    //             errdefer morphemes.deinit();
-    //
-    //             text_iter.reset();
-    //             word_i = 0;
-    //             morph_i = 0;
-    //             while (text_iter.next()) |next_morph| : (morph_i += 1) {
-    //                 const m = std.mem.trim(u8, next_morph, " ");
-    //                 if (m.len == 0) {
-    //                     word_i += 1;
-    //                     morph_i = 0;
-    //                     if (try self.morphsToElement(&morphemes)) |e| try words.append(e);
-    //                     continue;
-    //                 }
-    //
-    //                 const pool_lang: StringPools.Lang = switch (main[0].word.morphemes[0].strong.?.lang) {
-    //                     .hebrew, .aramaic => .semitic,
-    //                     .greek => .greek,
-    //                 };
-    //                 const owned = try self.putText(m);
-    //                 var morph = Word.Morpheme{ .text = owned };
-    //
-    //                 if (match) {
-    //                     const matched = main[word_i].word.morphemes[morph_i];
-    //                     morph.strong = matched.strong;
-    //                     morph.code = matched.code;
-    //                 }
-    //
-    //                 try morphemes.append(morph);
-    //             }
-    //
-    //             if (try self.morphsToElement(&morphemes)) |e| try words.append(e);
-    //
-    //             if (!match) {
-    //                 std.debug.print("spelling strong+grammar misalignment {s}.{d}.{d}#{d:0<2}\n", .{ @tagName(self.ref.book), self.ref.chapter, self.ref.verse, self.ref.word });
-    //             }
-    //
-    //             const children = try words.toOwnedSlice();
-    //             try acc.append(.{ .source_set = source_set, .children = children });
-    //         } else {
-    //             // K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
-    //             var paren_start = (findNextScalar(&iter, '(') orelse return error.VariantMissingLeftParen) + 1;
-    //             var paren_end = findNextScalar(&iter, ')') orelse return error.VariantMissingRightParen;
-    //             const text = buf[paren_start..paren_end];
-    //
-    //             // strongs and grammar
-    //             paren_start = (findNextScalar(&iter, '(') orelse return error.VariantMissingLeftParen2) + 1;
-    //             const equal = findNextScalar(&iter, '=') orelse return error.VariantMissingStrongGrammarDelimiter;
-    //             paren_end = findNextScalar(&iter, ')') orelse return error.VariantMissingRightParen2;
-    //             const strong = buf[paren_start..equal];
-    //             const grammar = buf[equal + 1..paren_end];
-    //
-    //             const children = try self.parseFields(text, strong, grammar, "", "");
-    //             try acc.append(.{ .source_set = source_set, .children = children });
-    //         }
-    //     }
-    // }
+    fn parseVariant(
+        self: *@This(),
+        buf: []const u8,
+        is_spelling: bool,
+        acc: *std.ArrayList(Variant.Option),
+    ) !void {
+        // spelling buf: B= עֲבָדִֽ֑ים\׃ ¦ P= עֲבָדִ֑ים\׃
+        // meaning buf:  K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
+        if (buf.len == 0) return;
+        // cannot simply split on ¦ because 0xA6 is after the 0x7F unicode cutooff.
+        // hebrew letters like צֵ contain 0xA6.
+        var iter = try Utf8Iter.init(buf);
+        var start: usize = 0;
+        while (iter.it.i < buf.len) {
+            iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
+            start = iter.it.i;
+    
+            const source_set_end = iter.findNextScalar('=') orelse return error.VariantMissingEqual;
+            var source_set = try SourceSet.parse(buf[start..source_set_end]);
+            source_set.is_significant = !is_spelling;
+            // consume =
+            iter.it.i += 1;
+    
+            const children = if (is_spelling) brk: {
+                const text_end = iter.findNextAny(&[_]u21{ '¦' }) orelse buf.len;
+                const text = std.mem.trim(u8, buf[source_set_end + 1..text_end], " ");
+                if (text.len == 0) break;
+                iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
 
-    // fn parseVariants(self: *@This(), main: []const Bible.Element, meaning: []const u8, spelling: []const u8,) !?Variant {
-    //     const allocator = self.allocator;
-    //     var options = Options.init(allocator);
-    //     defer options.deinit();
-    //     errdefer for (options.items) |o| o.deinit(allocator);
-    //     try options.append(Variant.Option{ .source_set = self.ref.primary, .children = main });
-    //
-    //     try self.parseVariant(meaning, &[_]Bible.Element{}, &options);
-    //     try self.parseVariant(spelling, main, &options);
-    //
-    //     return if (options.items.len > 1) .{ .options = try options.toOwnedSlice() } else null;
-    // }
+                break :brk try self.parseText(text);
+            } else brk: {
+                var paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen) + 1;
+                var paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen;
+                const text = buf[paren_start..paren_end];
+    
+                // strongs and grammar
+                paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen2) + 1;
+                const equal = iter.findNextScalar('=') orelse return error.VariantMissingStrongGrammarDelimiter;
+                paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen2;
+                const strong = buf[paren_start..equal];
+                const grammar = buf[equal + 1..paren_end];
 
-    fn morphsToElement(self: *@This(), morphemes: *std.ArrayList(Word.Morpheme), max_byte_len: usize,) !?Bible.Element {
+                const res = try self.parseFields(text, strong, grammar, "", "");
+    
+                break :brk res;
+            };
+
+            if (children.len > 0) try acc.append(.{ .source_set = source_set, .children = children });
+        }
+    }
+
+    fn parseVariants(
+        self: *@This(),
+        main: []Bible.Element,
+        meaning: []const u8,
+        spelling: []const u8,
+    ) !?[]Bible.Element {
+        const allocator = self.allocator;
+        var options = std.ArrayList(Variant.Option).init(allocator);
+        defer options.deinit();
+        errdefer for (options.items) |o| o.deinit(allocator);
+
+        try options.append(Variant.Option{ .source_set = self.ref.primary, .children = main });
+        self.parseVariant(meaning, false, &options) catch |e| {
+            self.warn("{} for meaning {s}", .{ e, meaning });
+        };
+        self.parseVariant(spelling, true, &options) catch |e| {
+            self.warn("{} for spelling {s}", .{ e, spelling });
+        };
+
+        // try alignVariants(&options);
+
+        if (options.items.len > 1) {
+            var res = try allocator.alloc(Bible.Element, 1);
+            res[0] = Bible.Element{ .variant = .{ .options = try options.toOwnedSlice() } };
+            return res;
+        }
+
+        return null;
+    }
+
+    fn morphsToElement(
+        self: *@This(),
+        morphemes: *std.ArrayList(Word.Morpheme),
+        max_byte_len: usize,
+    ) !?Bible.Element {
         const ref = self.ref;
         const morphs = try morphemes.toOwnedSlice();
         // skip lines that are included only to show variants:
@@ -241,14 +202,9 @@ CodepointTooLarge,
         // Take a guess based off length at which one is root.
         var seen_root = false;
         for (morphs) |*m| {
-            const is_root = m.text.len == max_byte_len;
+            const is_root = !seen_root and m.text.len == max_byte_len;
             seen_root = is_root;
-            m.type = if (is_root)
-                .root
-            else if (seen_root)
-                .suffix
-            else
-                .prefix;
+            m.type = if (is_root) .root else if (seen_root) .suffix else .prefix;
         }
 
         defer self.word_no +%= 1;
@@ -270,7 +226,7 @@ CodepointTooLarge,
         var max_byte_len: usize = 0;
         var morph_iter = std.mem.splitAny(u8, text, "/\\");
         while (morph_iter.peek()) |token| : (_ = morph_iter.next()) {
-            const tok = std.mem.trim(u8, token, " ");
+            const tok = std.mem.trim(u8, token, &std.ascii.whitespace);
             const i = morph_iter.index.?;
             // \ indicates punctuation, expect for ~10 places where
             // a/־/c is written instead of a/\־/c
@@ -278,8 +234,9 @@ CodepointTooLarge,
 
             if (tok.len == 0 or is_punctuation) {
                 if (try self.morphsToElement(&morphemes, max_byte_len)) |w| try res.append(w);
+                max_byte_len = 0;
                 // Punctuation marks are delimiters.
-                if (is_punctuation) {
+                if (is_punctuation and tok.len > 0) {
                     try res.append(Bible.Element{ .punctuation = Bible.Element.Punctuation{
                         .text = try self.putText(tok),
                     } });
@@ -339,15 +296,11 @@ CodepointTooLarge,
                         const trimmed = std.mem.trim(u8, strong, " "); 
                         if (trimmed.len == 0) continue; // probably a `//` word boundary
 
-                        const is_root = trimmed.len > 0 and trimmed[0] == '{';
+                        const left_brace = trimmed[0] == '{'; 
+                        const is_root = left_brace or w.morphemes.len == 1;
                         seen_root = is_root;
-                        m.type = if (is_root)
-                            .root
-                        else if (seen_root)
-                            .suffix
-                        else
-                            .prefix;
-                        m.strong = try Word.Morpheme.Strong.parse(trimmed[if (is_root) 1 else 0..]);
+                        m.type = if (is_root) .root else if (seen_root) .suffix else .prefix;
+                        m.strong = try Word.Morpheme.Strong.parse(trimmed[if (left_brace) 1 else 0..]);
                         break;
                     }
                     if (m.strong == null) {
@@ -387,17 +340,10 @@ CodepointTooLarge,
         grammars: []const u8,
         meaning_variants: []const u8,
         spelling_variants: []const u8,
-    ) Error![]const Bible.Element {
-        // const allocator = self.allocator;
-
+    ) Error![]Bible.Element {
         const res = try self.parseMorphemes(texts, strongs, grammars);
 
-        _ = .{ meaning_variants, spelling_variants };
-        // if (try self.parseVariants(main, meaning_variants, spelling_variants)) |v| {
-        //      var list = try allocator.alloc(Bible.Element, 1);
-        //      list[0] = .{ .variant = v };
-        //      return list;
-        // }
+        if (try self.parseVariants(res, meaning_variants, spelling_variants)) |v| return v;
 
         return res;
     }
@@ -440,6 +386,12 @@ CodepointTooLarge,
     }
 };
 
+// diacritical marks are U+300 to U+36F
+// hebrew is U+591 to U+5F4
+//  - diacritics U+591 to U+5C7
+//      - exceptions: punctuation U+5BE, U+5C0, U+5C3, and U+5C6
+//  - alphabet U+5D0 to U+05EA
+//  - punctuation until U+5F4
 const Utf8Iter = struct {
     it: std.unicode.Utf8Iterator,
 
@@ -581,88 +533,3 @@ test Reference {
         .primary = SourceSet{ .is_significant = true, .leningrad = true },
     }, try Reference.parse("Gen.31.55(32.1)#12=L"));
 }
-
-// fn testVariants(ref: []const u8, comptime expected: []const u8, str: []const u8) !void {
-//     const allocator = std.testing.allocator;
-// 
-//     var parser = Parser.init(allocator);
-//     defer parser.deinit();
-//     parser.ref = try Reference.parse(ref);
-// 
-//     var variant = (try parser.parseVariants(&[_]Bible.Element{}, str, "")).?;
-//     defer variant.deinit(allocator);
-// 
-//     var buf = std.ArrayList(u8).init(allocator);
-//     defer buf.deinit();
-// 
-//     var writer: xml.Writer(std.ArrayList(u8).Writer) = .{ .w = buf.writer() };
-//     try variant.writeXml(&writer);
-// 
-//     try std.testing.expectEqualStrings(
-//         \\
-//        \\<variant reason="">
-//        \\	<option is_significant="true" source_set="qere">
-//        \\	</option>
-//        \\
-//         ++ expected ++
-//         \\
-//         \\</variant>
-//         ,
-//         buf.items,
-//     );
-// }
-// 
-// test "Parser.parseVariants" {
-//     string_pools.global = string_pools.StringPools.init(std.testing.allocator);
-//     defer string_pools.global.deinit();
-// 
-//     try testVariants(
-//         "Neh.2.13#17=Q(K; B)",
-//         \\	<option is_significant="true" source_set="ketiv">
-//         \\		<w id="neh2:13#1">
-//         \\			<m type="prefix" code="HPd" strong="H9009">
-//         \\				הַ
-//         \\			</m>
-//         \\			<m type="prefix" code="HPp3mp" strong="H6555">
-//         \\				מְפֹרוָצִים
-//         \\			</m>
-//         \\		</w>
-//         \\	</option>
-//         \\	<option is_significant="true" source_set="bhs">
-//         \\		<w id="neh2:13#2">
-//         \\			<m type="prefix" code="HPd" strong="H9009">
-//         \\				הֵ֣
-//         \\			</m>
-//         \\			<m type="prefix" code="HPp3mp" strong="H6555">
-//         \\				מפְּרוּצִ֔ים
-//         \\			</m>
-//         \\		</w>
-//         \\	</option>
-//         ,
-//         \\K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
-//     );
-//     try testVariants(
-//         "Gen.27.3#11=Q(K)",
-//         \\	<option is_significant="true" source_set="ketiv">
-//         \\		<w id="gen27:3#1">
-//         \\			<m type="prefix" code="HNcbsa" strong="H6720">
-//         \\				צֵידָה\׃
-//         \\			</m>
-//         \\		</w>
-//         \\	</option>
-//         ,
-//         \\K= tzei.dah (צֵידָה\׃) "food" (H6720\H9016=HNcbsa)
-//     );
-//     try testVariants(
-//         "Deu.5.18#01=L(p)",
-//         \\	<option is_significant="true" source_set="punctuation">
-//         \\		<w id="deu5.18#1">
-//         \\			<m type="prefix" code="" strong="H3808">
-//         \\				וְ/לֹ֣א
-//         \\			</m>
-//         \\		</w>
-//         \\	</option>
-//         ,
-//         \\P= וְ/לֹ֣א	H3808
-//     );
-// }

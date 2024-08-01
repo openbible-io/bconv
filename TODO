@@ -1,5 +1,8 @@
 - [x] morphology
 - [x] string pool
 	- [x] leaks
-- [ ] variants
+- [x] variants
+	- [ ] align spelling variants with meaning variants
+	- [ ] manually fix TAHOT
 - [ ] punctuation
+- [ ] greek

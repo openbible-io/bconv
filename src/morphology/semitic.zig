@@ -382,7 +382,6 @@ pub fn Semitic(comptime VerbStemType: type) type {
                 try Number.mappings.write(self.number, writer);
             }
         };
-
     };
 }
 

@@ -26,7 +26,7 @@ pub fn deinit(self: *@This()) void {
 // }
 
 pub const Book = struct {
-    elements: []const Element,
+    elements: []Element,
 
     pub fn writeXml(self: @This(), writer: anytype, name: BookName) !void {
         try writer.header("1.0", "UTF-8");
@@ -71,7 +71,7 @@ pub const Element = union(enum) {
     punctuation: Punctuation,
     // fragment: Fragment,
 
-    pub fn writeXml(self: @This(), writer: anytype) @TypeOf(writer.*).Error!void {
+    pub fn writeXml(self: @This(), writer: anytype) (@TypeOf(writer.*).Error || error{NoSpaceLeft})!void {
         switch (self) {
             inline else => |e| try e.writeXml(writer),
         }
@@ -79,7 +79,7 @@ pub const Element = union(enum) {
 
     pub const Word = struct {
         ref: Reference,
-        morphemes: []const Morpheme,
+        morphemes: []Morpheme,
 
         pub fn writeXml(self: @This(), writer: anytype) !void {
             var buf: [16]u8 = undefined;
@@ -104,8 +104,8 @@ pub const Element = union(enum) {
 
         pub const Morpheme = struct {
             type: Type = .root,
-            code: ?morphology.Code,
-            strong: ?Strong,
+            code: ?morphology.Code = null,
+            strong: ?Strong = null,
             text: []const u8,
 
             pub fn writeXml(self: Morpheme, writer: anytype) !void {
@@ -174,7 +174,7 @@ pub const Element = union(enum) {
 
     pub const Quote = struct {
         by: []const u8,
-        children: []const Element,
+        children: []Element,
 
         pub fn writeXml(self: @This(), writer: anytype) !void {
             try writer.start("q", &[_]KV{ .{ "by", self.by } });
@@ -189,7 +189,7 @@ pub const Element = union(enum) {
 
     pub const Variant = struct {
         reason: ?Reason = null,
-        options: []const Option,
+        options: []Option,
 
         pub const Reason = enum {
             spelling,
@@ -199,11 +199,19 @@ pub const Element = union(enum) {
         };
 
         pub const Option = struct {
-            value: []const u8,
-            children: []const Element,
+            source_set: SourceSet,
+            children: []Element,
 
             pub fn writeXml(self: @This(), writer: anytype) !void {
-                try writer.start("option", &[_]KV{ .{ "value", self.value } });
+                var buf: [32]u8 = undefined;
+                var stream = std.io.fixedBufferStream(&buf);
+                try self.source_set.write(stream.writer());
+
+
+                try writer.start("option", &[_]KV{
+                    .{ "is_significant", if (self.source_set.is_significant) "true" else "false" },
+                    .{ "source_set", stream.getWritten() },
+                });
                 for (self.children) |c| try c.writeXml(writer);
                 try writer.end("option");
             }
@@ -212,6 +220,77 @@ pub const Element = union(enum) {
                 for (self.children) |c| c.deinit(allocator);
                 allocator.free(self.children);
             }
+
+            pub const SourceSet = packed struct {
+                is_significant: bool = false,
+                leningrad: bool = false,
+                restored: bool = false, // from Leningrad parallels
+                lxx: bool = false,
+                qere: bool = false, // spoken: scribal sidenotes/footnotes
+                ketiv: bool = false, // written tradition
+
+                allepo: bool = false,
+                bhs: bool = false,
+                cairensis: bool = false,
+                dead_sea_scrolls: bool = false,
+                emendation: bool = false,
+                formatting: bool = false,
+                ben_chaim: bool = false,
+                punctuation: bool = false,
+                scribal: bool = false,
+                variant: bool = false, // in some manuscripts
+
+               // neste_aland: bool = false, // na27 spelled like na28
+               // kjv: bool = false, // textus receptus 1894 with some corrections
+               // other = variant
+
+                pub fn parse(str: []const u8) !@This() {
+                    var res = @This(){ .is_significant = std.ascii.isUpper(str[0]) };
+                    for (str) |c| {
+                        switch (std.ascii.toLower(c)) {
+                            'l' => res.leningrad = true,
+                            'r' => res.restored = true,
+                            'x' => res.lxx = true,
+                            'q' => res.qere = true,
+                            'k' => res.ketiv = true,
+                            'a' => res.allepo = true,
+                            'b' => res.bhs = true,
+                            'c' => res.cairensis = true,
+                            'd' => res.dead_sea_scrolls = true,
+                            'e' => res.emendation = true,
+                            'f' => res.formatting = true,
+                            'h' => res.ben_chaim = true,
+                            'p' => res.punctuation = true,
+                            's' => res.scribal = true,
+                            'v' => res.variant = true,
+                            ' ', '\t', '/', => {},
+                            else => {
+                                std.debug.print("unknown source {c}\n", .{ c });
+                                return error.InvalidSource;
+                            }
+                        }
+                    }
+
+                    return res;
+                }
+
+                pub fn write(self: @This(), writer: anytype) !void {
+                    var n_sources: usize = 0;
+                    inline for (std.meta.fields(@This())) |f| {
+                        if (@field(self, f.name)) n_sources += 1;
+                    }
+
+                    var n_written: usize = 0;
+                    inline for (std.meta.fields(@This())) |f| {
+                        comptime if (std.mem.eql(u8, f.name, "is_significant")) continue;
+                        if (@field(self, f.name)) {
+                            try writer.writeAll(f.name);
+                            n_written += 1;
+                            if (n_written != n_sources - 1) try writer.writeByte(',');
+                        }
+                    }
+                }
+            };
         };
 
         pub fn writeXml(self: @This(), writer: anytype) !void {

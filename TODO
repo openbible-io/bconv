@@ -6,6 +6,7 @@
 - [ ] remove common prefix and suffixes of variants
 	- [ ] alignment
 - [x] punctuation
+	- [ ] enum
 - [ ] greek
 	- [ ] manually fix TAGNT
 - [ ] better xml writer
@@ -15,7 +16,13 @@
 	- [ ] comptime generic
 		- [ ] slices become children
 
-- reorg
-	- [ ] Bible folder
-		- [ ] reference namespace
-		- [ ] BookName -> Book.Name
+- [ ] reorg
+	- [x] Bible folder
+		- [x] reference namespace
+		- [x] BookName -> Book.Name
+	- [x] single stringpool
+
+- [ ] usfm working again
+	- [ ] flag for input file type
+		- [ ] educated guess when missing flag (+ print assumption)
+	- [ ] check alignment

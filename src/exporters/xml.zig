@@ -1,3 +1,4 @@
+const Bible = @import("../bible.zig").Bible;
 const xml = @import("zig-xml");
 
 const fmtAttributeContent = xml.fmtAttributeContent;
@@ -48,3 +49,9 @@ pub fn Writer(comptime Underlying: type) type {
     };
 }
 pub const KV = [2][]const u8;
+
+pub fn writeBook(book: Bible.Book, name: Bible.Book.Name, writer: anytype) !void {
+}
+
+pub fn write(bible: Bible, writer: anytype) !void {
+}

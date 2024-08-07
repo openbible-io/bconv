@@ -1,18 +1,13 @@
-books: Books,
+books: std.AutoArrayHashMap(Book.Name, Book.Writer),
 books_mutex: std.Thread.Mutex = .{},
 
-pub const Books = std.AutoArrayHashMap(Bible.BookName, Elements);
-pub const Elements = std.ArrayListUnmanaged(Bible.Element);
-
-pub fn appendElement(self: *@This(), book: Bible.BookName, text: Bible.Element) !void {
-    const allocator = self.books.allocator;
-
+pub fn getBook(self: *@This(), book: Book.Name) !*Book.Writer {
     self.books_mutex.lock();
     const gop_book = try self.books.getOrPut(book);
-    if (!gop_book.found_existing) gop_book.value_ptr.* = Elements{};
+    if (!gop_book.found_existing) gop_book.value_ptr.* = Book.Writer{};
     self.books_mutex.unlock();
 
-    try gop_book.value_ptr.append(allocator, text);
+    return gop_book.value_ptr;
 }
 
 pub fn toOwned(self: *@This()) !Bible {
@@ -31,7 +26,7 @@ pub fn toOwned(self: *@This()) !Bible {
 }
 
 pub fn init(allocator: Allocator) @This() {
-    return .{ .books = Books.init(allocator) };
+    return .{ .books = std.meta.FieldType(@This(), .books).init(allocator) };
 }
 
 pub fn deinit(self: *@This()) void {
@@ -42,6 +37,6 @@ pub fn deinit(self: *@This()) void {
 }
 
 const std = @import("std");
-const Bible = @import("./Bible.zig");
-const morph = @import("./morphology/mod.zig");
+const Book = @import("./Book.zig");
+const Bible = @import("../Bible.zig");
 const Allocator = std.mem.Allocator;

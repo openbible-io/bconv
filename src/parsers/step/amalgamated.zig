@@ -1,19 +1,26 @@
+/// Parser for TAHOT and TAGNT.
+///
+/// This is a weird TSV file with no consistent comment markers and duplicate header rows
+/// before every verse. Variants are not always consistent and require some alignment with
+/// the main variant.
+///
+/// Original source files: https://github.com/STEPBible/STEPBible-Data
+/// My fork: https://github.com/openbible-io/step
+///
+/// The original source is a downstream goodwill fork of what's served on
+/// https://www.stepbible.org
+/// Currently it's maintained by a single Tyndale employee.
 const std = @import("std");
-const Bible = @import("./Bible.zig");
-const BibleBuilder = @import("./BibleBuilder.zig");
-const morphology = @import("./morphology/mod.zig");
-const string_pools = @import("./StringPools.zig");
-const xml = @import("./xml.zig"); // for testing
+const Bible = @import("../../Bible.zig");
 
 const log = std.log.scoped(.step);
-const StringPools = string_pools.StringPools;
 const Allocator = std.mem.Allocator;
-const Word = Bible.Element.Word;
+const Book = Bible.Book;
+const Word = Bible.Word;
 const Morpheme = Word.Morpheme;
-const Variant = Bible.Element.Variant;
-const SourceSet = Variant.Option.SourceSet;
+const SourceSet = Bible.SourceSet;
 
-pub fn parseTxt(allocator: Allocator, fname: []const u8, out: *Bible) !void {
+pub fn parse(allocator: Allocator, fname: []const u8, out: *Bible) !void {
     var file = try std.fs.cwd().openFile(fname, .{});
     defer file.close();
 
@@ -45,7 +52,7 @@ pub fn parseTxt(allocator: Allocator, fname: []const u8, out: *Bible) !void {
 
 const Parser = struct {
     allocator: Allocator,
-    builder: BibleBuilder,
+    builder: Bible.Builder,
     ref: Reference = undefined,
     line_no: usize = 0,
     /// For resetting word_no
@@ -54,66 +61,19 @@ const Parser = struct {
     word_no: u8 = 1,
     /// logging
     fname: []const u8 = "",
-    lang: StringPools.Lang = .unknown,
 
     const Error = error{
-OutOfMemory,
-Overflow,
-InvalidCharacter,
-MorphInvalidLang,
-MorphMissingMorph,
-MorphMissingStrong,
-MorphMissingGrammar,
-MorphCodeMissingLang,
-SmallSemiticCode,
-MissingAdjectiveType,
-MorphEnumMapping,
-MissingAdjectiveGender,
-MissingAdjectiveNumber,
-MissingAdjectiveState,
-NounMissingForm,
-ProperNounMissingGender,
-NounMissingType,
-NounMissingGender,
-PronounMissingType,
-InvalidPrepositionSuffix,
-SuffixMissingType,
-MissingParticleType,
-MissingVerbForm,
-VerbMissingStem,
-VerbMissingForm,
-SemiticCode,
-InvalidUtf8,
-InvalidSource,
-VariantMissingEqual,
-VariantMissingLeftParen,
-VariantMissingRightParen,
-VariantMissingLeftParen2,
-VariantMissingRightParen2,
-VariantMissingStrongGrammarDelimiter,
-CodepointTooLarge,
-StrongEmpty,
-StrongInvalidLang,
     };
 
     pub fn init(allocator: Allocator, fname: []const u8) @This() {
-        return .{ .allocator = allocator, .builder = BibleBuilder.init(allocator), .fname = fname };
+        return .{ .allocator = allocator, .builder = Bible.Builder.init(allocator), .fname = fname };
     }
 
     pub fn deinit(self: *@This()) void {
         self.builder.deinit();
     }
 
-    fn putText(self: @This(), text: []const u8) ![]const u8 {
-        return try string_pools.global.getOrPutLang(text, self.lang);
-    }
-
-    fn parseVariant(
-        self: *@This(),
-        buf: []const u8,
-        is_spelling: bool,
-        acc: *std.ArrayList(Variant.Option),
-    ) !void {
+    fn parseVariant(self: *@This(), buf: []const u8, is_spelling: bool) !void {
         // spelling buf: B= עֲבָדִֽ֑ים\׃ ¦ P= עֲבָדִ֑ים\׃
         // meaning buf:  K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
         if (buf.len == 0) return;
@@ -131,14 +91,15 @@ StrongInvalidLang,
             // consume =
             iter.it.i += 1;
     
-            const children = if (is_spelling) brk: {
+            try self.builder.startOption(self.ref.book, source_set);
+            if (is_spelling) {
                 const text_end = iter.findNextAny(&[_]u21{ '¦' }) orelse buf.len;
                 const text = std.mem.trim(u8, buf[source_set_end + 1..text_end], " ");
                 if (text.len == 0) break;
                 iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
 
-                break :brk try self.parseText(text);
-            } else brk: {
+                try self.parseText(text);
+            } else {
                 var paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen) + 1;
                 var paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen;
                 const text = buf[paren_start..paren_end];
@@ -150,12 +111,8 @@ StrongInvalidLang,
                 const strong = buf[paren_start..equal];
                 const grammar = buf[equal + 1..paren_end];
 
-                const res = try self.parseFields(text, strong, grammar, "", "");
-    
-                break :brk res;
-            };
-
-            if (children.len > 0) try acc.append(.{ .source_set = source_set, .children = children });
+                try self.parseFields(text, strong, grammar, "", "");
+            }
         }
     }
 
@@ -164,41 +121,40 @@ StrongInvalidLang,
         main: []Bible.Element,
         meaning: []const u8,
         spelling: []const u8,
-    ) !?[]Bible.Element {
-        const allocator = self.allocator;
-        var options = std.ArrayList(Variant.Option).init(allocator);
-        defer options.deinit();
-        errdefer for (options.items) |o| o.deinit(allocator);
+    ) !void {
+        try self.builder.startOption(self.ref.book, self.ref.primary);
 
-        try options.append(Variant.Option{ .source_set = self.ref.primary, .children = main });
-        self.parseVariant(meaning, false, &options) catch |e| {
+        const meaning_trimmed = std.mem.trim(u8, meaning, &std.ascii.whitespace);
+        const spelling_trimmed = std.mem.trim(u8, spelling, &std.ascii.whitespace);
+
+        if (meaning_trimmed.len > 0 or spelling_trimmed.len > 0) {
+            try self.builder.startVariant(self.ref.book);
+        }
+
+        self.parseVariant(meaning, false) catch |e| {
             self.warn("{} for meaning {s}", .{ e, meaning });
         };
-        self.parseVariant(spelling, true, &options) catch |e| {
+        self.parseVariant(spelling, true) catch |e| {
             self.warn("{} for spelling {s}", .{ e, spelling });
         };
+        try self.builder.endVariant(self.ref.book);
 
+        _ = main;
         // try alignVariants(&options);
-
-        if (options.items.len > 1) {
-            var res = try allocator.alloc(Bible.Element, 1);
-            res[0] = Bible.Element{ .variant = .{ .options = try options.toOwnedSlice() } };
-            return res;
-        }
 
         return null;
     }
 
-    fn morphsToElement(
+    // move me
+    fn addWord(
         self: *@This(),
         morphemes: *std.ArrayList(Word.Morpheme),
         max_byte_len: usize,
-    ) !?Bible.Element {
-        const ref = self.ref;
+    ) !void {
         const morphs = try morphemes.toOwnedSlice();
         // skip lines that are included only to show variants:
         // Isa.44.24#16=Q(K)		[ ]	[ ]			K= mi (מִי) "who [was]?" (H4310=HPi)	L= מֵי ¦ ;		H4310
-        if (morphs.len == 0) return null;
+        if (morphs.len == 0) return;
         // Take a guess based off length at which one is root.
         var seen_root = false;
         for (morphs) |*m| {
@@ -208,58 +164,54 @@ StrongInvalidLang,
         }
 
         defer self.word_no +%= 1;
-        return Bible.Element{ .word = Word{
-            .ref = .{ .book = ref.book, .chapter = ref.chapter, .verse = ref.verse, .word = self.word_no },
+        try self.builder.addWord(self.ref.book, Word{
             .morphemes = morphs,
-        } };
+        });
     }
 
     /// Text -> [](Word | Punctuation)
-    fn parseText(self: *@This(), text: []const u8) ![]Bible.Element {
-        const allocator = self.allocator;
-        var res = std.ArrayList(Bible.Element).init(allocator);
-        defer res.deinit();
+    fn parseText(self: *@This(), text: []const u8) !Book.Element.Iterator {
+        var res = Book.Element.Iterator{ .start = self.builder.buf.len };
 
-        var morphemes = std.ArrayList(Word.Morpheme).init(allocator);
-        defer morphemes.deinit();
+        const ref = self.ref;
+        try self.builder.startWord(.{ .book = ref.book, .chapter = ref.chapter, .verse = ref.verse, .word = self.word_no, },);
 
         var max_byte_len: usize = 0;
         var morph_iter = std.mem.splitAny(u8, text, "/\\");
         while (morph_iter.peek()) |token| : (_ = morph_iter.next()) {
-            const tok = std.mem.trim(u8, token, &std.ascii.whitespace);
             const i = morph_iter.index.?;
+            const tok = std.mem.trim(u8, token, &std.ascii.whitespace);
             // \ indicates punctuation, expect for ~10 places where
             // a/־/c is written instead of a/\־/c
             const is_punctuation = i >= 1 and text[i - 1] == '\\' or std.mem.eql(u8, tok, "־");
 
             if (tok.len == 0 or is_punctuation) {
-                if (try self.morphsToElement(&morphemes, max_byte_len)) |w| try res.append(w);
+                // use max_byte_len;
+                try self.builder.finishWord();
                 max_byte_len = 0;
                 // Punctuation marks are delimiters.
-                if (is_punctuation and tok.len > 0) {
-                    try res.append(Bible.Element{ .punctuation = Bible.Element.Punctuation{
-                        .text = try self.putText(tok),
-                    } });
-                }
+                if (is_punctuation and tok.len > 0) try self.builder.addPunctuation(tok);
                 continue;
             }
             if (tok.len > max_byte_len) max_byte_len = tok.len;
 
-            const morph = Morpheme{
-                .type =  undefined, // will be set in morphsToElement
-                .text = try self.putText(tok),
-            };
-
-            try morphemes.append(morph);
+            try self.builder.addMorpheme(Morpheme{ .type =  undefined, .text = tok });
         }
 
-        if (try self.morphsToElement(&morphemes, max_byte_len)) |w| try res.append(w);
+        // use max_byte_len;
+        try self.builder.finishWord();
 
-        return try res.toOwnedSlice();
+        res.buf = self.builder.items;
+        res.end = self.builder.buf.len;
+        return res;
     }
 
     fn warn(self: @This(), comptime format: []const u8, args: anytype) void {
         log.warn(format ++ " at {s}:{d}", args ++ .{ self.fname, self.line_no });
+    }
+
+    fn err(self: @This(), comptime format: []const u8, args: anytype) void {
+        log.err(format ++ " at {s}:{d}", args ++ .{ self.fname, self.line_no });
     }
 
     fn parseMorphemes(
@@ -267,8 +219,11 @@ StrongInvalidLang,
         texts: []const u8,
         strongs: []const u8,
         grammars: []const u8,
-    ) ![]Bible.Element {
-        const lang: ?std.meta.Tag(morphology.Code) = if (grammars.len < 1)
+    ) !void {
+        var word_iter = try self.parseText(texts);
+
+        // Enrich words
+        const lang: ?std.meta.Tag(Morpheme.Code) = if (grammars.len < 1)
            null
         else
             switch (grammars[0]) {
@@ -279,16 +234,11 @@ StrongInvalidLang,
                     return error.MorphInvalidLang;
                 }
             };
-        self.lang = if (lang) |l| switch (l) {
-            .hebrew, .aramaic => .semitic,
-        } else .unknown;
         const grammars_trimmed = if (lang == null) grammars else grammars[1..];
-
-        const res = try self.parseText(texts);
         var strong_iter = std.mem.splitAny(u8, strongs, "/\\");
         var grammar_iter = std.mem.splitAny(u8, grammars_trimmed, "/\\");
 
-        for (res) |ele| switch (ele) {
+        while (word_iter.next()) |ele| switch (ele) {
             .word => |*w| {
                 for (w.morphemes) |*m| {
                     var seen_root = false;
@@ -313,8 +263,8 @@ StrongInvalidLang,
                         if (lang == null) return error.MorphCodeMissingLang;
 
                         m.code = switch (lang.?) {
-                            .hebrew => .{ .hebrew = try morphology.Hebrew.parse(trimmed) },
-                            .aramaic => .{ .aramaic = try morphology.Aramaic.parse(trimmed) },
+                            .hebrew => .{ .hebrew = try Morpheme.Hebrew.parse(trimmed) },
+                            .aramaic => .{ .aramaic = try Morpheme.Aramaic.parse(trimmed) },
                         };
                         break;
                     }
@@ -326,10 +276,8 @@ StrongInvalidLang,
             .punctuation => |_| {
                 _ = strong_iter.next();
             },
-            else => {},
+            else => unreachable,
         };
-
-        return res;
     }
 
     /// Appends to self.line_elements
@@ -340,12 +288,9 @@ StrongInvalidLang,
         grammars: []const u8,
         meaning_variants: []const u8,
         spelling_variants: []const u8,
-    ) Error![]Bible.Element {
-        const res = try self.parseMorphemes(texts, strongs, grammars);
-
-        if (try self.parseVariants(res, meaning_variants, spelling_variants)) |v| return v;
-
-        return res;
+    ) Error!void {
+        try self.parseMorphemes(texts, strongs, grammars);
+        try self.parseVariants(meaning_variants, spelling_variants);
     }
 
     fn parseLine2(self: *@This(), line: []const u8) !void {
@@ -372,16 +317,14 @@ StrongInvalidLang,
         // _ = fields.next() orelse return error.MissingFieldConjoin; // conjoin word
         // _ = fields.next() orelse return error.MissingFieldExpanded; // expanded Strong tags
 
-        const eles = try self.parseFields(text, strong, grammar, meaning_variant, spelling_variant);
-        defer self.allocator.free(eles);
-        for (eles) |e| try self.builder.appendElement(self.ref.book, e);
+        try self.parseFields(text, strong, grammar, meaning_variant, spelling_variant);
     }
 
     pub fn parseLine(self: *@This(), line: []const u8) !void {
         self.line_no += 1;
         self.parseLine2(line) catch |e| {
-            std.debug.print("{s}:{d} {}:\n", .{ self.fname, self.line_no, e });
-            std.debug.print("{s}\n", .{ line });
+            self.err("{}", .{ e });
+            // TODO: print exact character
         };
     }
 };

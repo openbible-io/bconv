@@ -714,4 +714,3 @@ test "Hebrew.Verb" {
     try testParse(ProperNoun{ .gender = .location }, "l");
     try testParse(Noun{ .type = .common, .gender = .male, .number = .singular, .state = .construct, }, "cmsc");
 }
-

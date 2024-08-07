@@ -1,10 +1,9 @@
 const std = @import("std");
 const simargs = @import("simargs");
-const usfm = @import("./usfm/mod.zig");
-const step = @import("./step.zig");
-const Bible = @import("./Bible.zig");
-const xml = @import("./xml.zig");
-const string_pools = @import("./StringPools.zig");
+const Bible = @import("./bible.zig").Bible;
+const parsers = @import("./parsers/mod.zig");
+const exporters = @import("./exporters/mod.zig");
+const StringPool = @import("./StringPool.zig");
 
 pub const std_options = .{
     .log_level = .warn,
@@ -30,8 +29,8 @@ pub fn main() !void {
     }, "[file]", null);
     defer opt.deinit();
 
-    string_pools.global = string_pools.StringPools.init(allocator);
-    defer string_pools.global.deinit();
+    StringPool.global = StringPool.init(allocator);
+    defer StringPool.global.deinit();
 
     var thread_pool: std.Thread.Pool = undefined;
     try thread_pool.init(.{ .allocator = allocator });
@@ -59,7 +58,7 @@ pub fn main() !void {
 }
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
-    step.parseTxt(allocator, fname, out) catch |e| {
+    parsers.step.amalgamated.parse(allocator, fname, out) catch |e| {
         std.debug.print("Error parsing {s}: {}\n", .{ fname, e });
         std.process.exit(1);
     };
@@ -71,6 +70,7 @@ fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, key: Bible.BookName, val
 
     const file = try outdir.createFile(fname, .{});
     defer file.close();
+    try exporters.xml.writeBook(val, key, file.writer());
     var writer: xml.Writer(std.fs.File.Writer) = .{ .w = file.writer() };
     try val.writeXml(&writer, key);
 }
@@ -84,7 +84,5 @@ fn writeFile(allocator: Allocator, outdir: std.fs.Dir, key: Bible.BookName, val:
 
 test {
     _ = Bible;
-    _ = step;
-    _ = string_pools;
-    // _ = usfm;
+    _ = parsers;
 }

@@ -1,9 +1,8 @@
 const std = @import("std");
 const simargs = @import("simargs");
-const Bible = @import("./bible.zig").Bible;
+const Bible = @import("./Bible.zig");
 const parsers = @import("./parsers/mod.zig");
 const exporters = @import("./exporters/mod.zig");
-const StringPool = @import("./StringPool.zig");
 
 pub const std_options = .{
     .log_level = .warn,
@@ -11,7 +10,7 @@ pub const std_options = .{
 const Allocator = std.mem.Allocator;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .stack_trace_frames = 10 }){};
     defer std.debug.assert(gpa.deinit() == .ok);
     // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     // defer arena.deinit();
@@ -28,9 +27,6 @@ pub fn main() !void {
         };
     }, "[file]", null);
     defer opt.deinit();
-
-    StringPool.global = StringPool.init(allocator);
-    defer StringPool.global.deinit();
 
     var thread_pool: std.Thread.Pool = undefined;
     try thread_pool.init(.{ .allocator = allocator });
@@ -50,11 +46,17 @@ pub fn main() !void {
     var outdir = try std.fs.cwd().openDir(opt.args.output_dir, .{});
     defer outdir.close();
 
-    var iter = bible.books.iterator();
-    while (iter.next()) |kv| {
-        thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.key_ptr.*, kv.value_ptr.* });
-    }
-    thread_pool.waitAndWork(&wg);
+    var file = try std.fs.cwd().createFile("test", .{});
+    defer file.close();
+    try file.writer().writeAll(bible.books.get(.gen).?);
+
+    try writeFile2(allocator, outdir, .gen, bible.books.get(.gen).?);
+
+    // var iter = bible.books.iterator();
+    // while (iter.next()) |kv| {
+    //     thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.key_ptr.*, kv.value_ptr.* });
+    // }
+    // thread_pool.waitAndWork(&wg);
 }
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
@@ -64,18 +66,21 @@ fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
     };
 }
 
-fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, key: Bible.BookName, val: Bible.Book) !void {
+fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, key: Bible.Book.Name, val: []const u8) !void {
     const fname = try std.fmt.allocPrint(allocator, "{s}.xml", .{ @tagName(key) });
     defer allocator.free(fname);
 
+    var stream = std.io.fixedBufferStream(val);
+    var reader = Bible.Book.Reader{ .underlying = stream.reader().any() };
+
     const file = try outdir.createFile(fname, .{});
     defer file.close();
-    try exporters.xml.writeBook(val, key, file.writer());
-    var writer: xml.Writer(std.fs.File.Writer) = .{ .w = file.writer() };
-    try val.writeXml(&writer, key);
+   var  xml = exporters.Xml{ .underlying = file.writer().any() };
+   try xml.header();
+    try xml.book(&reader);
 }
 
-fn writeFile(allocator: Allocator, outdir: std.fs.Dir, key: Bible.BookName, val: Bible.Book) void {
+fn writeFile(allocator: Allocator, outdir: std.fs.Dir, key: Bible.Book.Name, val: []const u8) void {
     writeFile2(allocator, outdir, key, val) catch |e| {
         std.debug.print("Error writing {s}: {}\n", .{ @tagName(key), e });
         std.process.exit(2);

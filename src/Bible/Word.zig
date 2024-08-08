@@ -12,6 +12,6 @@ pub const Reference = packed struct(u32) {
     }
 };
 
+const std = @import("std");
 const Morpheme = @import("./Morpheme.zig");
 const Book = @import("./Book.zig");
-const std = @import("std");

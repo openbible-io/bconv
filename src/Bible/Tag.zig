@@ -1,10 +1,10 @@
 pub const Tag = enum(u8) {
-    word,
-    morpheme,
-    variant,
-    option,
-    punctuation,
-    end,
+    word = 'w',
+    morpheme = 'm',
+    variant = 'v',
+    option = 'o',
+    punctuation = 'p',
+    end = 'e',
 
     pub fn fromType(comptime T: type) @This() {
         if (T == mod.Word) return .word;

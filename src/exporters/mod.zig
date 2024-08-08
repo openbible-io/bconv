@@ -1,1 +1,1 @@
-pub const xml = @import("./xml.zig");
+pub const Xml = @import("./Xml.zig");

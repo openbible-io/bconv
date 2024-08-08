@@ -1,194 +1,89 @@
-/// A sequence of one or more:
-/// - Word: ref, tag, type, []Morpheme
-///     - Morpheme: type, code, strong, text
-/// - Punctuation
-/// - Quote: [](Punctuation | Word)
-/// - Variant: []Option
-///     - Option: source_set, [](Word, Punctuation, Quote)
-/// Goals:
-/// - [x] only store unambiguous parsings
-/// - [x] NO versification
-/// - [x] mutable OR low cost conversion to immutable
-/// - [x] fast to iterate over in order
-/// - [x] memory efficient
-/// - [x] diffable and alignable
-///
-/// Non-goals:
-/// - aligned for SSE
-/// - binary format
-/// - chapters/verses
+//! Goals:
+//! - only store unambiguous parsings
+//! - NO versification
+//! - mutable
+//! - no allocation
+//! - fast to iterate over in order
+//! - memory efficient
+//! - diffable and alignable
+//!
+//! Non-goals:
+//! - aligned for SSE
+//! - chapters/verses
+name: Name,
+elements: []Element,
 
-/// A tag + value structure with delimiter tags for variants.
-///
-///  tag  ref 
-///    w gen1:1#1    
-///       tag type code strg  str
-///         m  pre   HR 9003   בְּ
-///  tag
-///    v
-///       tag  tag  ...
-///         o    w  ...
-///       tag  tag  ...
-///         o    w  ...
-///  tag
-///  end
-///
-///  tag  val
-///    p    :
-///
-/// v
-///  o w a w xyz
-///  o w b w xyz
-/// e
-/// v
-///  o w a
-///  o w b
-/// e 0000
-/// w xyz
-buf: []u8,
-
-pub const Builder = struct {
-    buf: std.ArrayList(u8),
-
-    pub fn init(allocator: Allocator) @This() {
-        return .{ .buf = std.ArrayList(u8).init(allocator) };
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.buf.deinit();
-    }
-
-    pub fn appendTag(self: *@This(), tag: Tag) !void {
-        try self.buf.append(@intFromEnum(tag));
-    }
-
-    pub fn appendInt(self: *@This(), comptime T: type, value: T) !void {
-        try self.buf.writer().writeInt(T, value, .little);
-    }
-
-    pub fn appendEnum(self: *@This(), comptime T: type, value: T) !void {
-        try self.appendInt(@typeInfo(T).Enum.tag_type, @intFromEnum(value));
-    }
-
-    pub fn appendString(self: *@This(), string: []const u8) !void {
-        try self.buf.append(@intCast(string.len));
-        try self.buf.appendSlice(string);
-    }
-
-    pub fn append(self: *@This(), comptime T: type, value: T) !void {
-        switch (@typeInfo(T)) {
-            .Struct => |s| {
-                if (s.backing_integer) |Int| return try self.appendInt(Int, @bitCast(value));
-                try self.appendTag(Tag.fromType(T));
-                inline for (s.fields) |f| try append(self, f.type, @field(value, f.name));
-            },
-            .Int => try self.appendInt(T, value),
-            .Enum => try self.appendEnum(T, value),
-            .Pointer => |p| {
-                if (p.size != .Slice) @compileError("can only serialize slices");
-                if (p.child == u8 and p.is_const) return try self.appendString(value);
-
-                for (value) |v| try self.append(p.child, v);
-            },
-            else => {
-                if (!std.meta.hasUniqueRepresentation(T))
-                    @compileError(@typeName(T) ++ " must have a unique representation");
-
-                @compileError("TODO: serialize " ++ @typeName(T));
-            },
-        }
-    }
+pub const Element = union(enum) {
+    word: Word,
+    punctuation: []const u8,
+    quote: []TextElement,
+    variant: []Option,
 };
 
-pub const Stream = struct {
-    stream: std.io.FixedBufferStream([]u8),
-
-    pub fn init(buf: []u8) @This() {
-        return .{ .stream = std.io.fixedBufferStream(buf) };
-    }
-
-    pub fn readInt(self: *@This(), comptime T: type) !T {
-        return self.stream.reader().readInt(T, .little);
-    }
-
-    pub fn readEnum(self: *@This(), comptime T: type) !T {
-        return self.stream.reader().readEnum(T, .little);
-    }
-
-    pub fn readString(self: *@This()) ![]u8 {
-        const len = try self.readInt(u8);
-        defer self.stream.pos += len;
-        return self.stream.buffer[self.stream.pos..][0..len];
-    }
-
-    /// Reads packed struct
-    pub fn readStruct(self: *@This(), comptime T: type) !T {
-        const IntType = @typeInfo(T).Struct.backing_integer.?;
-        const int = try self.readInt(IntType);
-        return @bitCast(int);
-    }
-
-    pub fn readTag(self: *@This()) !?Tag {
-        return self.readEnum(Tag) catch |e| switch (e) {
-            error.EndOfStream => return null,
-            error.InvalidValue => return e,
-        };
-    }
-
-    pub fn read(self: *@This()) !?Element {
-        return if (try self.readTag()) |tag|  switch (tag) {
-            .word => {
-                return .{ .word = WordIter{
-                    .ref = try self.readStruct(Word.Reference),
-                    .stream = self,
-                } };
-            },
-            .morpheme,
-            .variant,
-            .option,
-            .punctuation,
-            .end, => unreachable
-        } else null;
-    }
-
-    pub const Element = union(enum) {
-        word: WordIter,
-    };
-
-    pub const WordIter = struct {
-        ref: Word.Reference,
-        stream: *Stream,
-
-        pub fn next(self: *@This()) !?Morpheme {
-            if (try self.stream.readTag()) |t| switch (t) {
-                .morpheme => {},
-                else => {
-                    self.stream.stream.pos -= 1;
-                    return null;
-                },
-            } else return null;
-
-            var res: Morpheme = undefined;
-            res.type  = try self.stream.readEnum(Morpheme.Type);
-            res.strong =  try self.stream.readStruct(Morpheme.Strong);
-            res.text = try self.stream.readString();
-            return res;
-        }
-    };
+pub const TextElement = union(enum) {
+    word: Word,
+    punctuation: []const u8,
 };
 
-test Builder {
+pub const Option = struct {
+    source_set: SourceSet,
+    children: []TextElement,
+};
+
+pub fn normalize(self: *@This()) !void {
+    try self.normalizeVariants();
+    // Take a guess based off length at which one is root.
+    // var seen_root = false;
+    // for (morphs) |*m| {
+    //     const is_root = !seen_root and m.text.len == max_byte_len;
+    //     seen_root = is_root;
+    //     m.type = if (is_root) .root else if (seen_root) .suffix else .prefix;
+    // }
+}
+
+fn normalizeVariants(self: *@This()) !void {
+    _ = self;
+    // v
+    //  o w a w xyz
+    //  o w b w xyz
+    // e
+    // v
+    //  o w a
+    //  o w b
+    // e 0000
+    // w xyz
+}
+
+const std = @import("std");
+pub const Tag = @import("./Tag.zig").Tag;
+pub const Word = @import("./Word.zig");
+pub const Morpheme = @import("./Morpheme.zig");
+pub const SourceSet = @import("./source_set.zig").SourceSet;
+pub const Reader = @import("./Book/Reader.zig");
+pub const Writer = @import("./Book/Writer.zig");
+pub const Name = @import("./Book/name.zig").Name;
+pub const Stream = @import("./Book/Stream.zig");
+const Book = @This();
+
+test "Write + Read" {
     const allocator = std.testing.allocator;
-    var b = Builder.init(allocator);
-    defer b.deinit();
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+
+    var b = Writer{ .underlying = buffer.writer().any() };
 
     const word = Word{
         .ref = .{ .book = .gen, .chapter = 1, .verse = 1, .word = 1 },
         .morphemes = @constCast(&[_]Morpheme{
-            .{ .type = .prefix, .strong = .{ .n = 1, .lang = .greek, .sense = 'a' }, .text = "pre", },
+            .{
+                .type = .prefix,
+                .strong = .{ .n = 1, .lang = .greek, .sense = 'a' },
+                .text = "pre",
+            },
         }),
     };
-    try b.append(Word, word);
+    const book = Book{ .elements = [_]Element{ .{ .word = word } } };
+    try b.append(Book, book);
 
     var expected = [_]u8{
         0x00, // word
@@ -201,209 +96,15 @@ test Builder {
     };
     try std.testing.expectEqualSlices(u8, &expected, b.buf.items);
 
-    var reader = Stream.init(&expected);
+    var stream = std.io.fixedBufferStream(&expected);
+    var reader = Reader{ .underlying = stream.reader().any() };
 
-    var word_iter = (try reader.read()).?.word;
+    var word_iter = (try reader.next()).?.word;
     try std.testing.expectEqual(word.ref, word_iter.ref);
 
     for (word.morphemes) |morph| {
         try std.testing.expectEqualDeep(morph, try word_iter.next());
     }
     try std.testing.expectEqual(null, try word_iter.next());
-    try std.testing.expectEqual(null, try reader.read());
+    try std.testing.expectEqual(null, try reader.next());
 }
-
-pub const Name = enum(u8) {
-    // zig fmt: off
-    gen, exo, lev, num, deu, jos, jdg, rut, @"1sa", @"2sa", @"1ki",
-    @"2ki", @"1ch", @"2ch", ezr, neh, est, job, psa, pro, ecc, sng,
-    isa, jer, lam, ezk, dan, hos, jol, amo, oba, jon, mic,
-    nam, hab, zep, hag, zec, mal, mat, mrk, luk, jhn, act,
-    rom, @"1co", @"2co", gal, eph, php, col, @"1th", @"2th", @"1ti", @"2ti",
-    tit, phm, heb, jas, @"1pe", @"2pe", @"1jn", @"2jn", @"3jn", jud, rev,
-    // zig fmt: on
-
-    pub fn fromEnglish(name: []const u8) !@This() {
-        var normalized: [32]u8 = undefined;
-        if (name.len > normalized.len) return error.LongName;
-
-        var normalized_len: usize = 0;
-        for (name) |c| {
-            if (std.ascii.isWhitespace(c)) continue;
-            normalized[normalized_len] = std.ascii.toLower(c);
-            normalized_len += 1;
-        }
-        const n = normalized[0..normalized_len];
-
-        if (startsWith(n, "gen")) return .gen;
-        if (startsWith(n, "exo")) return .exo;
-        if (startsWith(n, "lev")) return .lev;
-        if (startsWith(n, "num")) return .num;
-        if (startsWith(n, "deu")) return .deu;
-        if (startsWith(n, "jos")) return .jos;
-        if (startsWith(n, "judg") or eql(n, "jdg")) return .jdg;
-        if (startsWith(n, "rut")) return .rut;
-        if (startsWith(n, "1sa") or eql(n, "samuel1") or eql(n, "samueli")) return .@"1sa";
-        if (startsWith(n, "2sa") or eql(n, "samuel2") or eql(n, "samuelii")) return .@"2sa";
-        if (startsWith(n, "1ki") or eql(n, "kings1") or eql(n, "kingsi") or startsWith(n, "1kg")) return .@"1ki";
-        if (startsWith(n, "2ki") or eql(n, "kings2") or eql(n, "kingsii") or startsWith(n, "2kg")) return .@"2ki";
-        if (startsWith(n, "1ch") or eql(n, "chronicles1") or eql(n, "chroniclesi")) return .@"1ch";
-        if (startsWith(n, "2ch") or eql(n, "chronicles2") or eql(n, "chroniclesii")) return .@"2ch";
-        if (startsWith(n, "ezr")) return .ezr;
-        if (startsWith(n, "neh")) return .neh;
-        if (startsWith(n, "est")) return .est;
-        if (startsWith(n, "job")) return .job;
-        if (startsWith(n, "ps")) return .psa;
-        if (startsWith(n, "pr")) return .pro;
-        if (startsWith(n, "ecc") or startsWith(n, "qoh")) return .ecc;
-        if (startsWith(n, "song") or eql(n, "sng") or startsWith(n, "cant")) return .sng;
-        if (startsWith(n, "isa")) return .isa;
-        if (startsWith(n, "jer")) return .jer;
-        if (startsWith(n, "lam")) return .lam;
-        if (startsWith(n, "eze") or eql(n, "ezk")) return .ezk;
-        if (startsWith(n, "dan")) return .dan;
-        if (startsWith(n, "hos")) return .hos;
-        if (startsWith(n, "joe") or eql(n, "jol")) return .jol;
-        if (startsWith(n, "am")) return .amo;
-        if (startsWith(n, "oba")) return .oba;
-        if (startsWith(n, "jon")) return .jon;
-        if (startsWith(n, "mic")) return .mic;
-        if (startsWith(n, "na")) return .nam;
-        if (startsWith(n, "hab")) return .hab;
-        if (startsWith(n, "zep")) return .zep;
-        if (startsWith(n, "hag")) return .hag;
-        if (startsWith(n, "zec")) return .zec;
-        if (startsWith(n, "mal")) return .mal;
-        if (startsWith(n, "mat")) return .mat;
-        if (startsWith(n, "mar") or eql(n, "mrk")) return .mrk;
-        if (startsWith(n, "luk")) return .luk;
-        if (startsWith(n, "joh") or eql(n, "jhn")) return .jhn;
-        if (startsWith(n, "act")) return .act;
-        if (startsWith(n, "rom")) return .rom;
-        if (startsWith(n, "1co") or eql(n, "corinthians1") or eql(n, "corinthiansi")) return .@"1co";
-        if (startsWith(n, "2co") or eql(n, "corinthians2") or eql(n, "corinthiansii")) return .@"2co";
-        if (startsWith(n, "gal")) return .gal;
-        if (startsWith(n, "eph")) return .eph;
-        if (startsWith(n, "philip") or eql(n, "php")) return .php;
-        if (startsWith(n, "col")) return .col;
-        if (startsWith(n, "1th") or eql(n, "thessalonians1") or eql(n, "thessaloniansi")) return .@"1th";
-        if (startsWith(n, "2th") or eql(n, "thessalonians2") or eql(n, "thessaloniansii")) return .@"2th";
-        if (startsWith(n, "1ti") or eql(n, "timothy1") or eql(n, "timothyi")) return .@"1ti";
-        if (startsWith(n, "2ti") or eql(n, "timothy2") or eql(n, "timothyii")) return .@"2ti";
-        if (startsWith(n, "tit")) return .tit;
-        if (startsWith(n, "phile") or eql(n, "phm") or eql(n, "phlm")) return .phm;
-        if (startsWith(n, "heb")) return .heb;
-        if (startsWith(n, "ja") or eql(n, "jas")) return .jas;
-        if (startsWith(n, "1pe") or eql(n, "peter1") or eql(n, "peteri")) return .@"1pe";
-        if (startsWith(n, "2pe") or eql(n, "peter2") or eql(n, "peterii")) return .@"2pe";
-        if (startsWith(n, "1jo") or eql(n, "1jn") or eql(n, "john1") or eql(n, "johni")) return .@"1jn";
-        if (startsWith(n, "2jo") or eql(n, "2jn") or eql(n, "john2") or eql(n, "johnii")) return .@"2jn";
-        if (startsWith(n, "3jo") or eql(n, "3jn") or eql(n, "john3") or eql(n, "johniii")) return .@"3jn";
-        if (startsWith(n, "jud")) return .jud; // must come after judges
-        if (startsWith(n, "rev")) return .rev;
-
-        // std.debug.print("invalid book name '{s}' (normalized to '{s}')\n", .{ name, n });
-        return error.InvalidBookName;
-    }
-
-    fn startsWith(a: []const u8, b: []const u8) bool {
-        return std.mem.startsWith(u8, a, b);
-    }
-
-    fn eql(a: []const u8, b: []const u8) bool {
-        return std.mem.eql(u8, a, b);
-    }
-
-    pub fn isOld(self: @This()) bool {
-        return !self.isNew();
-    }
-
-    pub fn isNew(self: @This()) bool {
-        return @intFromEnum(self) > @intFromEnum(.mat);
-    }
-
-    pub fn nChapters(self: @This()) usize {
-        return switch (self) {
-            .gen => 50,
-            .exo => 40,
-            .lev => 27,
-            .num => 36,
-            .deu => 34,
-            .jos => 24,
-            .jdg => 21,
-            .rut => 4,
-            .@"1sa" => 31,
-            .@"2sa" => 24,
-            .@"1ki" => 22,
-            .@"2ki" => 25,
-            .@"1ch" => 29,
-            .@"2ch" => 36,
-            .ezr => 10,
-            .neh => 13,
-            .est => 10,
-            .job => 42,
-            .psa => 150,
-            .pro => 31,
-            .ecc => 12,
-            .sng => 8,
-            .isa => 66,
-            .jer => 52,
-            .lam => 5,
-            .ezk => 48,
-            .dan => 12,
-            .hos => 14,
-            .jol => 3,
-            .amo => 9,
-            .oba => 1,
-            .jon => 4,
-            .mic => 7,
-            .nam => 3,
-            .hab => 3,
-            .zep => 3,
-            .hag => 2,
-            .zec => 14,
-            .mal => 4,
-            .mat => 28,
-            .mrk => 16,
-            .luk => 24,
-            .jhn => 21,
-            .act => 28,
-            .rom => 16,
-            .@"1co" => 16,
-            .@"2co" => 13,
-            .gal => 6,
-            .eph => 6,
-            .php => 4,
-            .col => 4,
-            .@"1th" => 5,
-            .@"2th" => 3,
-            .@"1ti" => 6,
-            .@"2ti" => 4,
-            .tit => 3,
-            .phm => 1,
-            .heb => 13,
-            .jas => 5,
-            .@"1pe" => 5,
-            .@"2pe" => 3,
-            .@"1jn" => 5,
-            .@"2jn" => 1,
-            .@"3jn" => 1,
-            .jud => 1,
-            .rev => 22,
-        };
-    }
-};
-
-test Name {
-    try std.testing.expectEqual(Name.gen, try Name.fromEnglish("Genesis"));
-    try std.testing.expectEqual(Name.@"1ch", try Name.fromEnglish("1  Chronicles"));
-}
-
-const std = @import("std");
-const Tag = @import("./Tag.zig").Tag;
-const Word = @import("./Word.zig");
-const Morpheme = @import("./Morpheme.zig");
-const SourceSet = @import("./source_set.zig").SourceSet;
-const String = @import("./string.zig").String;
-const Allocator = std.mem.Allocator;
-

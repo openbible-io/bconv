@@ -1,6 +1,6 @@
 type: Type = .root,
 strong: Strong = .{},
-// code: Code = 0,
+code: Code = .{},
 text: []const u8,
 
 pub const Type = enum(u8) {
@@ -9,30 +9,35 @@ pub const Type = enum(u8) {
     suffix,
 };
 
-/// TODO: manual tags to make size 4 instead of 6
-pub const Code = union(enum) {
-    hebrew: Hebrew,
-    aramaic: Aramaic,
+pub const Code = packed struct(u32) {
+    tag: Tag = .unknown,
+    value: packed union { hebrew: Hebrew, aramaic: Aramaic } = undefined,
+    _padding: u2 = 0,
+
+    pub const Tag = enum(u8) {unknown, hebrew, aramaic};
 
     pub fn parse(c: []const u8) !@This() {
         if (c.len < 2) return error.MorphCodeLen;
 
         return switch (c[0]) {
-            'H' => .{ .hebrew = try Hebrew.parse(c[1..]) },
-            'A' => .{ .aramaic = try Aramaic.parse(c[1..]) },
+            'H' => .{ .tag = .hebrew, .value = try Hebrew.parse(c[1..]) },
+            'A' => .{ .tag = .aramaic, .value = try Aramaic.parse(c[1..]) },
             else => error.MorphCodeLang,
         };
     }
 
     pub fn write(self: @This(), writer: anytype) !void {
-        switch (self) {
-            .hebrew => |h| {
-                try writer.writeByte('H');
-                try h.write(writer);
+        switch (self.tag) {
+            .unknown => {
+                try writer.writeByte('U');
             },
-            .aramaic => |a| {
+            .hebrew => {
+                try writer.writeByte('H');
+                try self.value.hebrew.write(writer);
+            },
+            .aramaic => {
                 try writer.writeByte('A');
-                try a.write(writer);
+                try self.value.aramaic.write(writer);
             },
         }
     }

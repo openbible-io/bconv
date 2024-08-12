@@ -69,6 +69,7 @@ pub const WordIter = struct {
         var res: Morpheme = undefined;
         res.type  = try self.reader.readEnum(Morpheme.Type);
         res.strong =  try self.reader.readStruct(Morpheme.Strong);
+        res.code =  try self.reader.readStruct(Morpheme.Code);
         res.text = try self.reader.readString();
         return res;
     }

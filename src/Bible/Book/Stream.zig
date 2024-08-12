@@ -83,6 +83,7 @@ pub const WordIter = struct {
         var res: MorphemePtr = undefined;
         res.type  = try self.reader.readEnumPtr(Morpheme.Type);
         res.strong =  try self.reader.readStructPtr(Morpheme.Strong);
+        res.code =  try self.reader.readStructPtr(Morpheme.Code);
         res.text = try self.reader.readString();
         return res;
     }
@@ -90,7 +91,7 @@ pub const WordIter = struct {
     const MorphemePtr = struct {
         type: *align(1) Morpheme.Type,
         strong: *align(1) Morpheme.Strong,
-        // code: Code = 0,
+        code: *align(1) Morpheme.Code,
         text: []u8,
     };
 };

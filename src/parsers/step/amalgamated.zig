@@ -214,8 +214,8 @@ const Parser = struct {
         strongs: []const u8,
         grammars: []const u8,
     ) !void {
-        const lang: ?std.meta.Tag(Morpheme.Code) = if (grammars.len < 1)
-           null
+        const lang: Morpheme.Code.Tag = if (grammars.len < 1)
+           .unknown
         else
             switch (grammars[0]) {
                 'H' => .hebrew,
@@ -225,14 +225,13 @@ const Parser = struct {
                     return error.MorphInvalidLang;
                 }
             };
-        const grammars_trimmed = if (lang == null) grammars else grammars[1..];
+        const grammars_trimmed = if (lang == .unknown) grammars else grammars[1..];
 
-        // Will mutate these bytes to add strongs and grammar.
+        // Will later mutate these bytes to add strongs and grammar.
         const raw_morphemes = try self.parseText(texts);
 
         var strong_iter = std.mem.splitAny(u8, strongs, "/\\");
         var grammar_iter = std.mem.splitAny(u8, grammars_trimmed, "/\\");
-        _ = &grammar_iter;
 
         var stream = Bible.Book.Stream.init(raw_morphemes);
 
@@ -264,20 +263,20 @@ const Parser = struct {
                         self.warn("{s} ({s}) missing strong", .{ m.text, @tagName(m.type.*) });
                     }
 
-                    // while (grammar_iter.next()) |grammar| {
-                    //     const trimmed = std.mem.trim(u8, grammar, " ");
-                    //     if (trimmed.len == 0) continue; // probably a `//` word boundary
-                    //     if (lang == null) return error.MorphCodeMissingLang;
+                    while (grammar_iter.next()) |grammar| {
+                        const trimmed = std.mem.trim(u8, grammar, " ");
+                        if (trimmed.len == 0) continue; // probably a `//` word boundary
 
-                    //     m.code = switch (lang.?) {
-                    //         .hebrew => .{ .hebrew = try Morpheme.Hebrew.parse(trimmed) },
-                    //         .aramaic => .{ .aramaic = try Morpheme.Aramaic.parse(trimmed) },
-                    //     };
-                    //     break;
-                    // }
-                    // if (m.code == null) {
-                    //     self.warn("{s} ({s}) missing grammar", .{ m.text, @tagName(m.type) });
-                    // }
+                        m.code.* = switch (lang) {
+                            .unknown => return error.MorphCodeMissingLang,
+                            .hebrew => .{ .tag = .hebrew, .value = .{ .hebrew = try Morpheme.Hebrew.parse(trimmed) } },
+                            .aramaic => .{ .tag = .aramaic, .value = .{ .aramaic = try Morpheme.Aramaic.parse(trimmed) } },
+                        };
+                        break;
+                    }
+                    if (@as(u32, @bitCast(m.code.*)) == 0) {
+                        self.warn("{s} ({s}) missing grammar", .{ m.text, @tagName(m.type.*) });
+                    }
                 }
             },
             // .punctuation => |_| {

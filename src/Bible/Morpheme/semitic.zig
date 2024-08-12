@@ -172,54 +172,78 @@ pub const Person = enum(u2) {
 };
 
 pub fn Semitic(comptime VerbStemType: type) type {
-    return union(enum(u8)) {
-        adverb: void,
-        conjunction: Conjunction,
-        preposition: Preposition,
-        particle: Particle,
-        adjective: Adjective,
-        noun: Noun,
-        noun_proper: ProperNoun,
-        pronoun: Pronoun,
-        suffix: Suffix,
-        verb_participle: VerbParticiple,
-        verb_infinitive: VerbInfinitive,
-        verb_other: VerbOther,
+    return packed struct {
+        tag: Tag,
+        value: Value,
+
+        pub const Tag = enum(u8) {
+            unknown,
+            adverb,
+            conjunction,
+            preposition,
+            particle,
+            adjective,
+            noun,
+            noun_proper,
+            pronoun,
+            suffix,
+            verb_participle,
+            verb_infinitive,
+            verb_other,
+        };
+        pub const Value = packed union {
+            adverb: void,
+            conjunction: Conjunction,
+            preposition: Preposition,
+            particle: Particle,
+            adjective: Adjective,
+            noun: Noun,
+            noun_proper: ProperNoun,
+            pronoun: Pronoun,
+            suffix: Suffix,
+            verb_participle: VerbParticiple,
+            verb_infinitive: VerbInfinitive,
+            verb_other: VerbOther,
+        };
+
+    fn init(comptime tag: Tag, value: anytype) @This() {
+        return .{ .tag = tag, .value = @unionInit(Value, @tagName(tag), value) };
+    }
 
         pub fn parse(buf: []const u8) !@This() {
             var r = ByteReader{ .buffer = buf };
             return switch (r.next() orelse return error.SmallSemiticCode) {
-                'A' => .{ .adjective = try Adjective.parse(&r) },
-                'C' => .{ .conjunction = .{ .is_sequential = false } },
-                'c' => .{ .conjunction = .{ .is_sequential = true } },
-                'D' => .adverb,
+                'A' => init(.adjective, try Adjective.parse(&r)),
+                'C' => init(.conjunction, Conjunction{ .is_sequential = false }),
+                'c' => init(.conjunction, Conjunction{ .is_sequential = true }),
+                'D' => init(.adverb, {}),
                 'N' => {
                     return switch (r.next() orelse return error.NounMissingForm) {
-                        'p' => .{ .noun_proper = try ProperNoun.parse(&r) },
+                        'p' => init(.noun_proper, try ProperNoun.parse(&r)),
                         else => {
                             r.pos -= 1;
-                            return .{ .noun = try Noun.parse(&r) };
+                            return init(.noun, try Noun.parse(&r));
                         },
                     };
                 },
-                'P' => .{ .pronoun = try Pronoun.parse(&r) },
-                'R' => .{ .preposition = try Preposition.parse(&r) },
-                'S' => .{ .suffix = try Suffix.parse(&r) },
-                'T' => .{ .particle = try Particle.parse(&r) },
+                'P' => init(.pronoun, try Pronoun.parse(&r)),
+                'R' => init(.preposition, try Preposition.parse(&r)),
+                'S' => init(.suffix, try Suffix.parse(&r)),
+                'T' => init(.particle, try Particle.parse(&r)),
                 'V' => {
                     _ = r.next(); // stem
                    switch (r.next() orelse return error.MissingVerbForm) {
                        'r', 's' => {
                            r.pos -= 2;
-                           return .{ .verb_participle = try VerbParticiple.parse(&r) };
+                           return init(.verb_participle, try VerbParticiple.parse(&r));
                        },
                        'a', 'c' => {
                            r.pos -= 2;
-                           return .{ .verb_infinitive = try VerbInfinitive.parse(&r) };
+                           return init(.verb_infinitive, try VerbInfinitive.parse(&r));
                        },
                        else => {
                            r.pos -= 2;
-                           return .{ .verb_other = try VerbOther.parse(&r) };
+                           return init(.verb_other, try VerbOther.parse(&r));
                        }
                     }
                 },
@@ -228,36 +252,40 @@ pub fn Semitic(comptime VerbStemType: type) type {
         }
 
         pub fn write(self: @This(), writer: anytype) !void {
-            switch (self) {
-                .adjective => |a| {
+            switch (self.tag) {
+                .unknown => {
+                    try writer.writeByte('U');
+                },
+                .adjective => {
                     try writer.writeByte('A');
-                    try a.write(writer);
+                    try self.value.adjective.write(writer);
                 },
-                .conjunction => |c| try writer.writeByte(if (c.is_sequential) 'c' else 'C'),
+                .conjunction => try writer.writeByte(if (self.value.conjunction.is_sequential) 'c' else 'C'),
                 .adverb => try writer.writeByte('D'),
-                .noun => |n| {
+                .noun => {
                     try writer.writeByte('N');
-                    try n.write(writer);
+                    try self.value.noun.write(writer);
                 },
-                .noun_proper => |n| {
+                .noun_proper => {
                     try writer.writeAll("Np");
-                    try n.write(writer);
+                    try self.value.noun_proper.write(writer);
                 },
-                .pronoun => |p| {
+                .pronoun => {
                     try writer.writeByte('P');
-                    try p.write(writer);
+                    try self.value.pronoun.write(writer);
                 },
                 .preposition => try writer.writeByte('R'),
-                .suffix => |s| {
+                .suffix => {
                     try writer.writeByte('S');
-                    try s.write(writer);
+                    try self.value.suffix.write(writer);
                 },
-                .particle => |p| {
+                .particle => {
                     try writer.writeByte('P');
-                    try Particle.mappings.write(p, writer);
+                    try Particle.mappings.write(self.value.particle, writer);
                 },
-                inline .verb_participle, .verb_infinitive, .verb_other => |v| {
+                inline .verb_participle, .verb_infinitive, .verb_other => |t| {
                     try writer.writeByte('V');
+                    const v = @field(self.value, @tagName(t));
                     try v.write(writer);
                 },
             }

@@ -96,6 +96,7 @@ pub fn book(self: *@This(), reader: *Bible.Book.Reader) !void {
                 try self.open("m");
                 try self.attribute("type", @tagName(m.type));
                 try self.anyAttribute("strong", Bible.Morpheme.Strong, m.strong);
+                try self.anyAttribute("code", Bible.Morpheme.Code, m.code);
                 try self.endOpen();
                 try self.text(m.text);
                 try self.end("m");

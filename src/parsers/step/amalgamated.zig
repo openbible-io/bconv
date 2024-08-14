@@ -88,7 +88,7 @@ const Parser = struct {
     //     // spelling buf: B= עֲבָדִֽ֑ים\׃ ¦ P= עֲבָדִ֑ים\׃
     //     // meaning buf:  K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
     //     if (buf.len == 0) return;
-    //     // cannot simply split on ¦ because 0xA6 is after the 0x7F unicode cutooff.
+    //     // cannot simply split on ¦ because 0xA6 is after the 0x7F unicode cutoff.
     //     // hebrew letters like צֵ contain 0xA6.
     //     var iter = try Utf8Iter.init(buf);
     //     var start: usize = 0;

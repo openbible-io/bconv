@@ -206,9 +206,9 @@ pub fn Semitic(comptime VerbStemType: type) type {
             verb_other: VerbOther,
         };
 
-    fn init(comptime tag: Tag, value: anytype) @This() {
-        return .{ .tag = tag, .value = @unionInit(Value, @tagName(tag), value) };
-    }
+        fn init(comptime tag: Tag, value: anytype) @This() {
+            return .{ .tag = tag, .value = @unionInit(Value, @tagName(tag), value) };
+        }
 
         pub fn parse(buf: []const u8) !@This() {
             var r = ByteReader{ .buffer = buf };

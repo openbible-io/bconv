@@ -1,6 +1,7 @@
 const std = @import("std");
 
 pub const SourceSet = packed struct(u16) {
+    /// Affects translation
     is_significant: bool = false,
     leningrad: bool = false,
     restored: bool = false, // from Leningrad parallels

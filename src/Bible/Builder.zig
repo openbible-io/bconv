@@ -1,21 +1,5 @@
-books: std.AutoArrayHashMap(Book.Name, BookBuilder),
+books: std.AutoArrayHashMap(Book.Name, Book.Builder),
 books_mutex: std.Thread.Mutex = .{},
-
-pub const BookBuilder = struct {
-    buf: std.ArrayList(u8),
-
-    pub fn init(allocator: Allocator) BookBuilder {
-        return .{ .buf = std.ArrayList(u8).init(allocator) };
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.buf.deinit();
-    }
-
-    pub fn writer(self: *@This()) Book.Writer {
-        return Book.Writer{ .underlying = self.buf.writer().any() };
-    }
-};
 
 pub fn init(allocator: Allocator) @This() {
     return .{ .books = std.meta.FieldType(@This(), .books).init(allocator) };
@@ -27,11 +11,11 @@ pub fn deinit(self: *@This()) void {
     self.books.deinit();
 }
 
-pub fn getBook(self: *@This(), book: Book.Name) !*BookBuilder {
+pub fn getBook(self: *@This(), book: Book.Name) !*Book.Builder {
     const allocator = self.books.allocator;
     self.books_mutex.lock();
     const gop_book = try self.books.getOrPut(book);
-    if (!gop_book.found_existing) gop_book.value_ptr.* = BookBuilder.init(allocator);
+    if (!gop_book.found_existing) gop_book.value_ptr.* = try Book.Builder.init(allocator, book);
     self.books_mutex.unlock();
 
     return gop_book.value_ptr;
@@ -42,7 +26,7 @@ pub fn toOwned(self: *@This()) !Bible {
     var res = Bible.init(allocator);
     var iter = self.books.iterator();
     while (iter.next()) |kv| {
-        const owned = try kv.value_ptr.*.buf.toOwnedSlice();
+        const owned = try kv.value_ptr.toOwned();
         try res.books.put(kv.key_ptr.*, owned);
     }
     return res;
@@ -51,4 +35,5 @@ pub fn toOwned(self: *@This()) !Bible {
 const std = @import("std");
 const Bible = @import("../Bible.zig");
 const Book = @import("./Book.zig");
+const StringPool = @import("./StringPool.zig");
 const Allocator = std.mem.Allocator;

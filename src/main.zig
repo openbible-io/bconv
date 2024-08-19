@@ -46,11 +46,7 @@ pub fn main() !void {
     var outdir = try std.fs.cwd().openDir(opt.args.output_dir, .{});
     defer outdir.close();
 
-    var file = try std.fs.cwd().createFile("test", .{});
-    defer file.close();
-    try file.writer().writeAll(bible.books.get(.gen).?);
-
-    try writeFile2(allocator, outdir, .gen, bible.books.get(.gen).?);
+    try writeFile2(allocator, outdir, bible.books.get(.gen).?);
 
     // var iter = bible.books.iterator();
     // while (iter.next()) |kv| {
@@ -66,23 +62,20 @@ fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
     };
 }
 
-fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, key: Bible.Book.Name, val: []const u8) !void {
-    const fname = try std.fmt.allocPrint(allocator, "{s}.xml", .{ @tagName(key) });
+fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) !void {
+    const fname = try std.fmt.allocPrint(allocator, "{s}.xml", .{ @tagName(book.name) });
     defer allocator.free(fname);
-
-    var stream = std.io.fixedBufferStream(val);
-    var reader = Bible.Book.Reader{ .underlying = stream.reader().any() };
 
     const file = try outdir.createFile(fname, .{});
     defer file.close();
    var  xml = exporters.Xml{ .underlying = file.writer().any() };
    try xml.header();
-    try xml.book(&reader);
+    try xml.book(book);
 }
 
-fn writeFile(allocator: Allocator, outdir: std.fs.Dir, key: Bible.Book.Name, val: []const u8) void {
-    writeFile2(allocator, outdir, key, val) catch |e| {
-        std.debug.print("Error writing {s}: {}\n", .{ @tagName(key), e });
+fn writeFile(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) void {
+    writeFile2(allocator, outdir, book) catch |e| {
+        std.debug.print("Error writing {s}: {}\n", .{ @tagName(book.name), e });
         std.process.exit(2);
     };
 }

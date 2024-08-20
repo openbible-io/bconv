@@ -16,7 +16,6 @@ const Reference = @import("./Reference.zig");
 
 const log = std.log.scoped(.step);
 const Allocator = std.mem.Allocator;
-const Word = Bible.Word;
 const Morpheme = Bible.Morpheme;
 const SourceSet = Bible.SourceSet;
 
@@ -127,36 +126,24 @@ const Parser = struct {
     //         if (children.len > 0) try acc.append(.{ .source_set = source_set, .children = children });
     //     }
     // }
-    //
-    // fn parseVariants(
-    //     self: *@This(),
-    //     main: []Bible.Element,
-    //     meaning: []const u8,
-    //     spelling: []const u8,
-    // ) !?[]Bible.Element {
-    //     const allocator = self.allocator;
-    //     var options = std.ArrayList(Variant.Option).init(allocator);
-    //     defer options.deinit();
-    //     errdefer for (options.items) |o| o.deinit(allocator);
-    //
-    //     try options.append(Variant.Option{ .source_set = self.ref.primary, .children = main });
-    //     self.parseVariant(meaning, false, &options) catch |e| {
-    //         self.warn("{} for meaning {s}", .{ e, meaning });
-    //     };
-    //     self.parseVariant(spelling, true, &options) catch |e| {
-    //         self.warn("{} for spelling {s}", .{ e, spelling });
-    //     };
-    //
-    //     // try alignVariants(&options);
-    //
-    //     if (options.items.len > 1) {
-    //         var res = try allocator.alloc(Bible.Element, 1);
-    //         res[0] = Bible.Element{ .variant = .{ .options = try options.toOwnedSlice() } };
-    //         return res;
-    //     }
-    //
-    //     return null;
-    // }
+
+    fn parseVariants(
+        self: *@This(),
+        main: []Bible.Morpheme,
+        meaning: []const u8,
+        spelling: []const u8,
+    ) !void {
+        _ = .{ self, main, meaning, spelling };
+        // const allocator = self.allocator;
+        // self.parseVariant(meaning, false, &options) catch |e| {
+        //     self.warn("{} for meaning {s}", .{ e, meaning });
+        // };
+        // self.parseVariant(spelling, true, &options) catch |e| {
+        //     self.warn("{} for spelling {s}", .{ e, spelling });
+        // };
+
+        // try alignVariants(&options);
+    }
 
     fn parseText(self: *@This(), text: []const u8) ![]Morpheme {
         const start = self.builder.morphemes.items.len;
@@ -180,6 +167,7 @@ const Parser = struct {
                 continue;
             }
             try self.builder.morphemes.append(Morpheme{
+                .source = self.ref.source,
                 .text = pooled,
                 .flags = .{
                     .starts_word = starts_word,
@@ -267,22 +255,6 @@ const Parser = struct {
         return res;
     }
 
-    /// Appends to self.line_elements
-    fn parseFields(
-        self: *@This(),
-        texts: []const u8,
-        strongs: []const u8,
-        grammars: []const u8,
-        meaning_variants: []const u8,
-        spelling_variants: []const u8,
-    ) !void {
-        const res = try self.parseMorphemes(texts, strongs, grammars);
-
-        _ = .{ meaning_variants, spelling_variants, res };
-        // if (try self.parseVariants(res, meaning_variants, spelling_variants)) |v| return v;
-
-    }
-
     fn parseLine2(self: *@This(), line: []const u8) !void {
         if (line.len == 0 or line[0] == '#') return;
         var fields = std.mem.splitScalar(u8, line, '\t');
@@ -291,20 +263,22 @@ const Parser = struct {
 
         self.ref = Reference.parse(ref_type) catch return;
         self.builder = try self.bible_builder.getBook(self.ref.book);
+        self.builder.source = SourceSet{ .leningrad = true };
 
-        const text = fields.next() orelse return error.MissingFieldText;
+        const texts = fields.next() orelse return error.MissingFieldText;
         _ = fields.next() orelse return error.MissingFieldTransliteration;
         _ = fields.next() orelse return error.MissingFieldTranslation;
-        const strong = fields.next() orelse return error.MissingFieldStrong;
-        const grammar = fields.next() orelse return error.MissingFieldGrammar;
-        const meaning_variant = fields.next() orelse return error.MissingFieldMeaningVariant;
-        const spelling_variant = fields.next() orelse return error.MissingFieldSpellingVariant;
+        const strongs = fields.next() orelse return error.MissingFieldStrong;
+        const grammars = fields.next() orelse return error.MissingFieldGrammar;
+        const meaning_variants = fields.next() orelse return error.MissingFieldMeaningVariant;
+        const spelling_variants = fields.next() orelse return error.MissingFieldSpellingVariant;
         // _ = fields.next() orelse return error.MissingFieldRootStrong; // Root dStrong+Instance
         // _ = fields.next() orelse return error.MissingFieldAltStrong; // alt Strongs+Instance
         // _ = fields.next() orelse return error.MissingFieldConjoin; // conjoin word
         // _ = fields.next() orelse return error.MissingFieldExpanded; // expanded Strong tags
 
-        try self.parseFields(text, strong, grammar, meaning_variant, spelling_variant);
+        const morphs = try self.parseMorphemes(texts, strongs, grammars);
+        try self.parseVariants(morphs, meaning_variants, spelling_variants);
     }
 
     pub fn parseLine(self: *@This(), line: []const u8) !void {

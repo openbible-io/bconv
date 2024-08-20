@@ -66,15 +66,16 @@ fn attribute(self: *@This(), key: []const u8, val: []const u8) !void {
     try self.underlying.print(" {s}=\"{s}\"", .{ key,  val });
 }
 
-fn anyAttribute(self: *@This(), key: []const u8, comptime T: type, val: T) !void {
+fn anyAttribute(self: *@This(), key: []const u8, val: anytype) !void {
+    const T = @TypeOf(val);
     if (std.meta.hasFn(T, "write")) {
         try self.underlying.print(" {s}=\"", .{ key });
         try val.write(self.underlying);
         try self.underlying.writeByte('"');
     } else switch (@typeInfo(T)) {
         inline .Int, .Float => try self.underlying.print(" {s}=\"{d}\"", .{ key, val }),
-        .Optional => |o| {
-            if (val) |v| try self.anyAttribute(key, o.child, v);
+        .Optional => {
+            if (val) |v| try self.anyAttribute(key, v);
         },
         .Bool => try self.attribute(key,  if (val) "true" else "false"),
         .Enum => try self.attribute(key,  @tagName(val)),
@@ -85,9 +86,12 @@ fn anyAttribute(self: *@This(), key: []const u8, comptime T: type, val: T) !void
 fn morpheme(self: *@This(), book_: Bible.Book, i: Bible.StringPool.Index) !void {
     const m = book_.morphemes[i];
     try self.open("m");
-    try self.attribute("type", @tagName(m.flags.type));
-    try self.anyAttribute("strong", Morpheme.Strong, m.strong);
-    if (!m.code.isNull()) try self.anyAttribute("code", Morpheme.Code, m.code);
+    if (!book_.source.eql(m.source)) {
+        try self.anyAttribute("source",  m.source);
+    }
+    try self.anyAttribute("type", m.flags.type);
+    try self.anyAttribute("strong",  m.strong);
+    if (!m.code.isNull()) try self.anyAttribute("code",  m.code);
     try self.endOpen();
     try self.text(book_.pool.get(m.text).?);
     try self.close("m");
@@ -97,6 +101,7 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
     var i: Bible.StringPool.Index = 0;
     try self.open("book");
     try self.attribute("id", @tagName(book_.name));
+    if (!book_.source.isNull()) try self.anyAttribute("source", book_.source);
     try self.endOpen();
     while (i < book_.morphemes.len) {
         const w = book_.morphemes[i];
@@ -104,7 +109,7 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
         self.depth += 1;
         try self.tab();
         try self.open("w");
-        // try self.anyAttribute("ref", Bible.Word.Reference, w.ref);
+        // try self.anyAttribute("ref", w.ref);
         try self.endOpen();
 
         try self.morpheme(book_, i);

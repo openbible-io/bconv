@@ -1,8 +1,6 @@
 const std = @import("std");
 
-pub const SourceSet = packed struct(u16) {
-    /// Affects translation
-    is_significant: bool = false,
+pub const SourceSet = packed struct {
     leningrad: bool = false,
     restored: bool = false, // from Leningrad parallels
     lxx: bool = false,
@@ -23,9 +21,10 @@ pub const SourceSet = packed struct(u16) {
     // neste_aland: bool = false, // na27 spelled like na28
     // kjv: bool = false, // textus receptus 1894 with some corrections
     // other = variant
+    const Int = @typeInfo(@This()).Struct.backing_integer.?;
 
     pub fn parse(str: []const u8) !@This() {
-        var res = @This(){ .is_significant = std.ascii.isUpper(str[0]) };
+        var res = @This(){};
         for (str) |c| {
             switch (std.ascii.toLower(c)) {
                 'l' => res.leningrad = true,
@@ -62,12 +61,19 @@ pub const SourceSet = packed struct(u16) {
 
         var n_written: usize = 0;
         inline for (std.meta.fields(@This())) |f| {
-            comptime if (std.mem.eql(u8, f.name, "is_significant")) continue;
             if (@field(self, f.name)) {
                 try writer.writeAll(f.name);
-                n_written += 1;
                 if (n_written != n_sources - 1) try writer.writeByte(',');
+                n_written += 1;
             }
         }
+    }
+
+    pub fn isNull(self: @This()) bool {
+        return @as(Int, @bitCast(self)) == 0;
+    }
+
+    pub fn eql(self: @This(), other: @This()) bool {
+        return @as(Int, @bitCast(self)) == @as(Int, @bitCast(other));
     }
 };

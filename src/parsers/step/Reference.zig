@@ -2,7 +2,7 @@ book: Bible.Book.Name,
 chapter: u8,
 verse: u8,
 word: u8,
-primary: SourceSet,
+source: SourceSet,
 variants: [max_variants]SourceSet = [_]SourceSet{.{}} ** max_variants,
 
 /// 6 =L(b; p)
@@ -31,7 +31,7 @@ pub fn parse(ref: []const u8) !@This() {
 
     const source_end = std.mem.indexOfScalarPos(u8, ref, source_start, '(') orelse ref.len;
     const source_str = ref[source_start + 1..source_end];
-    const primary =  try SourceSet.parse(source_str);
+    const source =  try SourceSet.parse(source_str);
 
     var variants = [_]SourceSet{.{}} ** max_variants;
     if (source_end != ref.len) {
@@ -48,7 +48,7 @@ pub fn parse(ref: []const u8) !@This() {
         .chapter = chapter,
         .verse = verse,
         .word = word,
-        .primary = primary,
+        .source = source,
         .variants = variants,
     };
 }
@@ -59,7 +59,7 @@ test {
         .chapter = 1,
         .verse = 2,
         .word = 3,
-        .primary = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .is_significant = true, .leningrad = true },
     }, try Reference.parse("Gen.1.2#03=L"));
 
     try std.testing.expectEqual(Reference{
@@ -67,7 +67,7 @@ test {
         .chapter = 1,
         .verse = 2,
         .word = 3,
-        .primary = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .is_significant = true, .leningrad = true },
         .variants = [_]SourceSet{
             .{ .bhs = true },
             .{ .punctuation = true },
@@ -79,7 +79,7 @@ test {
         .chapter = 10,
         .verse = 20,
         .word = 30,
-        .primary = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .is_significant = true, .leningrad = true },
         .variants = [_]SourceSet{
             .{ .bhs = true },
             .{ .punctuation = true },
@@ -91,7 +91,7 @@ test {
         .chapter = 31,
         .verse = 55,
         .word = 12,
-        .primary = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .is_significant = true, .leningrad = true },
     }, try Reference.parse("Gen.31.55(32.1)#12=L"));
 }
 

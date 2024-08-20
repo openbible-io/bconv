@@ -11,6 +11,7 @@ name: Name,
 pool: StringPool,
 morphemes: []Morpheme,
 n_words: StringPool.Index,
+source: SourceSet,
 
 pub fn deinit(self: *@This(), allocator: Allocator) void {
    allocator.free(self.morphemes);
@@ -45,6 +46,7 @@ pub const Builder = struct {
     name: Name,
     pool: StringPool.Builder,
     morphemes: std.ArrayList(Morpheme),
+    source: SourceSet = .{},
     n_words: StringPool.Index = 0,
 
     pub fn init(allocator: Allocator, name: Name) !@This() {
@@ -65,6 +67,7 @@ pub const Builder = struct {
             .name = self.name,
             .pool = try self.pool.toOwned(),
             .morphemes = try self.morphemes.toOwnedSlice(),
+            .source = self.source,
             .n_words = self.n_words,
         };
     }
@@ -74,5 +77,6 @@ const std = @import("std");
 pub const Morpheme = @import("./Morpheme.zig");
 pub const Name = @import("./Book/name.zig").Name;
 pub const StringPool = @import("./StringPool.zig");
+const SourceSet = @import("./source_set.zig").SourceSet;
 const Book = @This();
 const Allocator = std.mem.Allocator;

@@ -1,15 +1,15 @@
-source_set: SourceSet = .{},
+source: SourceSet = .{},
 flags: Flags = .{},
 text: StringPool.Index = 0,
 strong: Strong = .{},
 code: Code = .{},
 
 pub const Flags = packed struct(u8) {
-    is_variant: bool = false,
     /// prevents requiring lookbehind on `type` for word iteration
     /// also prevents highjacking another field when parsing STEP amalgamated
     starts_word: bool = false,
     type: Type = .root,
+    is_variant: bool = false,
     _padding: u4 = 0,
 };
 pub const Type = enum(u2) { root, prefix, suffix, punctuation };

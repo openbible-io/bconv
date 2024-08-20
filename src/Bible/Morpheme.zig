@@ -7,12 +7,15 @@ code: Code = .{},
 pub const Flags = packed struct(u8) {
     /// prevents requiring lookbehind on `type` for word iteration
     /// also prevents highjacking another field when parsing STEP amalgamated
+    variant: Variant = .none,
     starts_word: bool = false,
     type: Type = .root,
-    is_variant: bool = false,
-    _padding: u4 = 0,
+    _padding: u3 = 0,
+
+    const Variant = enum(u2) { none, start, option_start, ended };
+    const Type = enum(u2) { root, prefix, suffix, punctuation };
 };
-pub const Type = enum(u2) { root, prefix, suffix, punctuation };
+
 pub const Lang = enum(u8) { hebrew, aramaic, greek };
 
 pub const Code = packed struct(u32) {

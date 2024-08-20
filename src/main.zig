@@ -46,11 +46,13 @@ pub fn main() !void {
     var outdir = try std.fs.cwd().openDir(opt.args.output_dir, .{});
     defer outdir.close();
 
-    var iter = bible.books.iterator();
-    while (iter.next()) |kv| {
-        thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.value_ptr.* });
-    }
-    thread_pool.waitAndWork(&wg);
+    try writeFile2(allocator, outdir, bible.books.get(.gen).?);
+
+    // var iter = bible.books.iterator();
+    // while (iter.next()) |kv| {
+    //     thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.value_ptr.* });
+    // }
+    // thread_pool.waitAndWork(&wg);
 }
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {

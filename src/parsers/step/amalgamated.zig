@@ -61,6 +61,8 @@ const Parser = struct {
     builder: *Bible.Book.Builder = undefined,
     ref: Reference = undefined,
     line_no: usize = 0,
+    has_variant: bool = false,
+    variant_ended: bool = false,
     /// logging
     fname: []const u8 = "",
 
@@ -76,56 +78,51 @@ const Parser = struct {
         self.bible_builder.deinit();
     }
 
-    // fn parseVariant(
-    //     self: *@This(),
-    //     buf: []const u8,
-    //     is_spelling: bool,
-    //     acc: *std.ArrayList(Variant.Option),
-    // ) !void {
-    //     // spelling buf: B= עֲבָדִֽ֑ים\׃ ¦ P= עֲבָדִ֑ים\׃
-    //     // meaning buf:  K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
-    //     if (buf.len == 0) return;
-    //     // cannot simply split on ¦ because 0xA6 is after the 0x7F unicode cutoff.
-    //     // hebrew letters like צֵ contain 0xA6.
-    //     var iter = try Utf8Iter.init(buf);
-    //     var start: usize = 0;
-    //     while (iter.it.i < buf.len) {
-    //         iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
-    //         start = iter.it.i;
-    //
-    //         const source_set_end = iter.findNextScalar('=') orelse return error.VariantMissingEqual;
-    //         var source_set = try SourceSet.parse(buf[start..source_set_end]);
-    //         source_set.is_significant = !is_spelling;
-    //         // consume =
-    //         iter.it.i += 1;
-    //
-    //         const children = if (is_spelling) brk: {
-    //             const text_end = iter.findNextAny(&[_]u21{ '¦' }) orelse buf.len;
-    //             const text = std.mem.trim(u8, buf[source_set_end + 1..text_end], " ");
-    //             if (text.len == 0) break;
-    //             iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
-    //
-    //             break :brk try self.parseText(text);
-    //         } else brk: {
-    //             var paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen) + 1;
-    //             var paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen;
-    //             const text = buf[paren_start..paren_end];
-    //
-    //             // strongs and grammar
-    //             paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen2) + 1;
-    //             const equal = iter.findNextScalar('=') orelse return error.VariantMissingStrongGrammarDelimiter;
-    //             paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen2;
-    //             const strong = buf[paren_start..equal];
-    //             const grammar = buf[equal + 1..paren_end];
-    //
-    //             const res = try self.parseFields(text, strong, grammar, "", "");
-    //
-    //             break :brk res;
-    //         };
-    //
-    //         if (children.len > 0) try acc.append(.{ .source_set = source_set, .children = children });
-    //     }
-    // }
+    fn parseVariant(self: *@This(), buf: []const u8, is_spelling: bool) !void {
+        // spelling buf: B= עֲבָדִֽ֑ים\׃ ¦ P= עֲבָדִ֑ים\׃
+        // meaning buf:  K= ha/me.for.va.tzim (הַ/מְפֹרוָצִים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp) ¦ B= he/m.fe.ru.tzim (הֵ֣/מפְּרוּצִ֔ים) "<the>/ [had been] broken down" (H9009/H6555=HTd/Pp3mp)
+        if (buf.len == 0) return;
+        // cannot simply split on ¦ because 0xA6 is after the 0x7F unicode cutoff.
+        // hebrew letters like צֵ contain 0xA6.
+        var iter = try Utf8Iter.init(buf);
+        var start: usize = 0;
+        while (iter.it.i < buf.len) {
+            iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
+            start = iter.it.i;
+
+            const source_set_end = iter.findNextScalar('=') orelse return error.VariantMissingEqual;
+            const source_set = try SourceSet.parse(buf[start..source_set_end]);
+            // consume =
+            iter.it.i += 1;
+
+            const children = if (is_spelling) brk: {
+                const text_end = iter.findNextAny(&[_]u21{ '¦' }) orelse buf.len;
+                const text = std.mem.trim(u8, buf[source_set_end + 1..text_end], " ");
+                if (text.len == 0) break;
+                iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
+
+                break :brk try self.parseText(text);
+            } else brk: {
+                var paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen) + 1;
+                var paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen;
+                const text = buf[paren_start..paren_end];
+
+                // strongs and grammar
+                paren_start = (iter.findNextScalar('(') orelse return error.VariantMissingLeftParen2) + 1;
+                const equal = iter.findNextScalar('=') orelse return error.VariantMissingStrongGrammarDelimiter;
+                paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen2;
+                const strong = buf[paren_start..equal];
+                const grammar = buf[equal + 1..paren_end];
+
+                break :brk try self.parseMorphemes(text, strong, grammar);
+            };
+            if (children.len == 0) continue;
+
+            self.has_variant = true;
+            children[0].flags.variant = .option_start;
+            for (children) |*c| c.source = source_set;
+        }
+    }
 
     fn parseVariants(
         self: *@This(),
@@ -133,16 +130,19 @@ const Parser = struct {
         meaning: []const u8,
         spelling: []const u8,
     ) !void {
-        _ = .{ self, main, meaning, spelling };
-        // const allocator = self.allocator;
-        // self.parseVariant(meaning, false, &options) catch |e| {
-        //     self.warn("{} for meaning {s}", .{ e, meaning });
-        // };
-        // self.parseVariant(spelling, true, &options) catch |e| {
-        //     self.warn("{} for spelling {s}", .{ e, spelling });
-        // };
+        self.has_variant = false;
+        self.variant_ended = false;
+        self.parseVariant(meaning, false) catch |e| {
+            self.warn("{} for meaning {s}", .{ e, meaning });
+        };
+        self.parseVariant(spelling, true) catch |e| {
+            self.warn("{} for spelling {s}", .{ e, spelling });
+        };
 
-        // try alignVariants(&options);
+        if (self.has_variant) {
+            main[0].flags.variant = .start;
+            self.variant_ended = true;
+        }
     }
 
     fn parseText(self: *@This(), text: []const u8) ![]Morpheme {
@@ -171,6 +171,7 @@ const Parser = struct {
                 .text = pooled,
                 .flags = .{
                     .starts_word = starts_word,
+                    .variant = if (self.variant_ended) .ended else .none,
                      // if not punctuation, correct type will be set from {Strong}
                      // OR if variant from alignment
                     .type = if (is_punctuation) .punctuation else  .root,
@@ -263,7 +264,6 @@ const Parser = struct {
 
         self.ref = Reference.parse(ref_type) catch return;
         self.builder = try self.bible_builder.getBook(self.ref.book);
-        self.builder.source = SourceSet{ .leningrad = true };
 
         const texts = fields.next() orelse return error.MissingFieldText;
         _ = fields.next() orelse return error.MissingFieldTransliteration;

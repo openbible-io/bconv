@@ -11,7 +11,6 @@ name: Name,
 pool: StringPool,
 morphemes: []Morpheme,
 n_words: StringPool.Index,
-source: SourceSet,
 
 pub fn deinit(self: *@This(), allocator: Allocator) void {
    allocator.free(self.morphemes);
@@ -46,8 +45,8 @@ pub const Builder = struct {
     name: Name,
     pool: StringPool.Builder,
     morphemes: std.ArrayList(Morpheme),
-    source: SourceSet = .{},
     n_words: StringPool.Index = 0,
+    variant_ended: bool = false,
 
     pub fn init(allocator: Allocator, name: Name) !@This() {
         return .{
@@ -62,12 +61,19 @@ pub const Builder = struct {
         self.pool.deinit();
     }
 
+    pub fn addMorph(self: *@This(), morph: Morpheme) !void {
+        if (self.variant_ended) {
+            morph.flags.variant = .ended;
+            self.variant_ended = false;
+        }
+        try self.morphemes.append(morph);
+    }
+
     pub fn toOwned(self: *@This()) !Book {
         return .{
             .name = self.name,
             .pool = try self.pool.toOwned(),
             .morphemes = try self.morphemes.toOwnedSlice(),
-            .source = self.source,
             .n_words = self.n_words,
         };
     }

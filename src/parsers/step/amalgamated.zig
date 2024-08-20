@@ -189,6 +189,7 @@ const Parser = struct {
                 },
             });
             // std.debug.print("{s} {}\n", .{ tok, starts_word });
+            if (starts_word) self.builder.n_words += 1;
             starts_word = false;
         }
 

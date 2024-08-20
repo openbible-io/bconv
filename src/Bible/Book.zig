@@ -10,6 +10,7 @@
 name: Name,
 pool: StringPool,
 morphemes: []Morpheme,
+n_words: StringPool.Index,
 
 pub fn deinit(self: *@This(), allocator: Allocator) void {
    allocator.free(self.morphemes);
@@ -44,6 +45,7 @@ pub const Builder = struct {
     name: Name,
     pool: StringPool.Builder,
     morphemes: std.ArrayList(Morpheme),
+    n_words: StringPool.Index = 0,
 
     pub fn init(allocator: Allocator, name: Name) !@This() {
         return .{
@@ -63,6 +65,7 @@ pub const Builder = struct {
             .name = self.name,
             .pool = try self.pool.toOwned(),
             .morphemes = try self.morphemes.toOwnedSlice(),
+            .n_words = self.n_words,
         };
     }
 };

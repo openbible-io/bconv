@@ -1,4 +1,5 @@
 buf: []const u8,
+n_unique: Index = 0,
 
 pub fn deinit(self: @This(), allocator: Allocator) void {
     allocator.free(self.buf);
@@ -48,7 +49,7 @@ pub const Builder = struct {
     }
 
     pub fn toOwned(self: *@This()) !StringPool {
-        return .{ .buf = try self.buf.toOwnedSlice() };
+        return .{ .buf = try self.buf.toOwnedSlice(), .n_unique = @intCast(self.map.entries.len) };
     }
 };
 

@@ -46,13 +46,11 @@ pub fn main() !void {
     var outdir = try std.fs.cwd().openDir(opt.args.output_dir, .{});
     defer outdir.close();
 
-    try writeFile2(allocator, outdir, bible.books.get(.gen).?);
-
-    // var iter = bible.books.iterator();
-    // while (iter.next()) |kv| {
-    //     thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.key_ptr.*, kv.value_ptr.* });
-    // }
-    // thread_pool.waitAndWork(&wg);
+    var iter = bible.books.iterator();
+    while (iter.next()) |kv| {
+        thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.value_ptr.* });
+    }
+    thread_pool.waitAndWork(&wg);
 }
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
@@ -71,6 +69,11 @@ fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) !void 
    var  xml = exporters.Xml{ .underlying = file.writer().any() };
    try xml.header();
     try xml.book(book);
+
+    std.debug.print(
+        "{d:>5} words {d:>5} morphemes ({d:>5} unique) {s}\n",
+        .{ book.n_words, book.morphemes.len, book.pool.n_unique, fname },
+    );
 }
 
 fn writeFile(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) void {

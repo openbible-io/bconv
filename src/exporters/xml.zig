@@ -1,32 +1,29 @@
 underlying: std.io.AnyWriter,
 depth: usize = 0,
-tab: []const u8 = "\t",
+tab_str: []const u8 = "\t",
 
 pub fn header(self: *@This()) !void {
-    try self.underlying.writeAll("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+    try self.underlying.writeAll("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 }
 
 fn open(self: *@This(), tag: []const u8) !void {
-    try self.underlying.writeByte('\n');
-    try self.underlying.writeBytesNTimes(self.tab, self.depth);
     try self.underlying.print("<{s}", .{ tag });
+}
+
+fn tab(self: @This()) !void {
+    try self.underlying.writeByte('\n');
+    try self.underlying.writeBytesNTimes(self.tab_str, self.depth);
 }
 
 fn endOpen(self: *@This()) !void {
     try self.underlying.writeByte('>');
-    self.depth += 1;
 }
 
 fn text(self: *@This(), str: []const u8) !void {
-    try self.underlying.writeByte('\n');
-    try self.underlying.writeBytesNTimes(self.tab, self.depth);
     try self.underlying.print("{s}", .{ str });
 }
 
-fn end(self: *@This(), tag: []const u8) !void {
-    try self.underlying.writeByte('\n');
-    self.depth -= 1;
-    try self.underlying.writeBytesNTimes(self.tab, self.depth);
+fn close(self: *@This(), tag: []const u8) !void {
     try self.underlying.print("</{s}>", .{ tag });
 }
 
@@ -41,7 +38,7 @@ fn element(self: *@This(), comptime T: type, value: T) !void {
             try self.endOpen();
             const last_field = s.fields[s.fields.len - 1];
             try self.children(last_field.type, @field(value, last_field.name));
-            try self.end(tag);
+            try self.close(tag);
         },
         .Union => {
             switch (value) {
@@ -92,8 +89,8 @@ fn morpheme(self: *@This(), book_: Bible.Book, i: Bible.StringPool.Index) !void 
     try self.anyAttribute("strong", Morpheme.Strong, m.strong);
     if (!m.code.isNull()) try self.anyAttribute("code", Morpheme.Code, m.code);
     try self.endOpen();
-    try self.underlying.print("{s}</m>", .{ book_.pool.get(m.text).? });
-    self.depth -= 1;
+    try self.text(book_.pool.get(m.text).?);
+    try self.close("m");
 }
 
 pub fn book(self: *@This(), book_: Bible.Book) !void {
@@ -104,6 +101,8 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
     while (i < book_.morphemes.len) {
         const w = book_.morphemes[i];
         std.debug.assert(w.flags.starts_word);
+        self.depth += 1;
+        try self.tab();
         try self.open("w");
         // try self.anyAttribute("ref", Bible.Word.Reference, w.ref);
         try self.endOpen();
@@ -114,9 +113,11 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
             try self.morpheme(book_, i);
         }
 
-        try self.end("w");
+        self.depth -= 1;
+        try self.close("w");
     }
-    try self.end("book");
+    try self.tab();
+    try self.close("book");
 }
 
 const std = @import("std");

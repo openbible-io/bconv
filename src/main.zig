@@ -10,7 +10,7 @@ pub const std_options = .{
 const Allocator = std.mem.Allocator;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{ .stack_trace_frames = 10 }){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     // defer arena.deinit();
@@ -46,13 +46,13 @@ pub fn main() !void {
     var outdir = try std.fs.cwd().openDir(opt.args.output_dir, .{});
     defer outdir.close();
 
-    try writeFile2(allocator, outdir, bible.books.get(.gen).?);
+    // try writeFile2(allocator, outdir, bible.books.get(.exo).?);
 
-    // var iter = bible.books.iterator();
-    // while (iter.next()) |kv| {
-    //     thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.value_ptr.* });
-    // }
-    // thread_pool.waitAndWork(&wg);
+    var iter = bible.books.iterator();
+    while (iter.next()) |kv| {
+        thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.value_ptr.* });
+    }
+    thread_pool.waitAndWork(&wg);
 }
 
 fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {

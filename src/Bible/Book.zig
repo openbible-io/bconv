@@ -8,6 +8,7 @@
 //! Non-goals:
 //! - chapters/verses
 name: Name,
+source: SourceSet,
 pool: StringPool,
 morphemes: []Morpheme,
 n_words: StringPool.Index,
@@ -43,14 +44,16 @@ fn normalizeVariants(self: *@This()) !void {
 
 pub const Builder = struct {
     name: Name,
+    source: SourceSet,
     pool: StringPool.Builder,
     morphemes: std.ArrayList(Morpheme),
     n_words: StringPool.Index = 0,
     variant_ended: bool = false,
 
-    pub fn init(allocator: Allocator, name: Name) !@This() {
+    pub fn init(allocator: Allocator, name: Name, source: SourceSet) !@This() {
         return .{
             .name = name,
+            .source = source,
             .pool = try StringPool.Builder.init(allocator),
             .morphemes = std.ArrayList(Morpheme).init(allocator),
         };
@@ -72,6 +75,7 @@ pub const Builder = struct {
     pub fn toOwned(self: *@This()) !Book {
         return .{
             .name = self.name,
+            .source = self.source,
             .pool = try self.pool.toOwned(),
             .morphemes = try self.morphemes.toOwnedSlice(),
             .n_words = self.n_words,

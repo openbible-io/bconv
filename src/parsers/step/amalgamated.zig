@@ -61,8 +61,6 @@ const Parser = struct {
     builder: *Bible.Book.Builder = undefined,
     ref: Reference = undefined,
     line_no: usize = 0,
-    has_variant: bool = false,
-    variant_ended: bool = false,
     /// logging
     fname: []const u8 = "",
 
@@ -116,10 +114,6 @@ const Parser = struct {
 
                 break :brk try self.parseMorphemes(text, strong, grammar);
             };
-            if (children.len == 0) continue;
-
-            self.has_variant = true;
-            children[0].flags.variant = .option_start;
             for (children) |*c| c.source = source_set;
         }
     }
@@ -130,8 +124,17 @@ const Parser = struct {
         meaning: []const u8,
         spelling: []const u8,
     ) !void {
-        self.has_variant = false;
-        self.variant_ended = false;
+        // not ideal, but better than having to make a temporary separate arraylist
+        const has_variants = meaning.len > 0 or spelling.len > 0;
+        if (!has_variants) return;
+
+        if (main.len == 0) {
+            const empty_morph = Morpheme{ .flags = .{ .starts_word = true, .starts_variant = true }};
+            try self.builder.morphemes.append(empty_morph);
+        } else {
+            main[0].flags.starts_variant = true;
+        }
+
         self.parseVariant(meaning, false) catch |e| {
             self.warn("{} for meaning {s}", .{ e, meaning });
         };
@@ -139,10 +142,7 @@ const Parser = struct {
             self.warn("{} for spelling {s}", .{ e, spelling });
         };
 
-        if (self.has_variant) {
-            main[0].flags.variant = .start;
-            self.variant_ended = true;
-        }
+        self.builder.morphemes.items[self.builder.morphemes.items.len - 1].flags.ends_variant = true;
     }
 
     fn parseText(self: *@This(), text: []const u8) ![]Morpheme {
@@ -171,7 +171,6 @@ const Parser = struct {
                 .text = pooled,
                 .flags = .{
                     .starts_word = starts_word,
-                    .variant = if (self.variant_ended) .ended else .none,
                      // if not punctuation, correct type will be set from {Strong}
                      // OR if variant from alignment
                     .type = if (is_punctuation) .punctuation else  .root,
@@ -216,7 +215,7 @@ const Parser = struct {
 
         for (res) |*m| {
             var seen_root = false;
-            const text = self.builder.pool.get(m.text).?;
+            const text = self.builder.pool.get(m.text);
             while (strong_iter.next()) |strong| {
                 const trimmed = std.mem.trim(u8, strong, " ");
                 if (trimmed.len == 0) continue; // probably a `//` word boundary
@@ -263,7 +262,7 @@ const Parser = struct {
         const ref_type = fields.first();
 
         self.ref = Reference.parse(ref_type) catch return;
-        self.builder = try self.bible_builder.getBook(self.ref.book);
+        self.builder = try self.bible_builder.getBook(self.ref.book, SourceSet{ .leningrad = true });
 
         const texts = fields.next() orelse return error.MissingFieldText;
         _ = fields.next() orelse return error.MissingFieldTransliteration;

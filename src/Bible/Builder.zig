@@ -11,11 +11,11 @@ pub fn deinit(self: *@This()) void {
     self.books.deinit();
 }
 
-pub fn getBook(self: *@This(), book: Book.Name) !*Book.Builder {
+pub fn getBook(self: *@This(), book: Book.Name, source: Bible.SourceSet) !*Book.Builder {
     const allocator = self.books.allocator;
     self.books_mutex.lock();
     const gop_book = try self.books.getOrPut(book);
-    if (!gop_book.found_existing) gop_book.value_ptr.* = try Book.Builder.init(allocator, book);
+    if (!gop_book.found_existing) gop_book.value_ptr.* = try Book.Builder.init(allocator, book, source);
     self.books_mutex.unlock();
 
     return gop_book.value_ptr;

@@ -5,8 +5,7 @@ pub fn deinit(self: @This(), allocator: Allocator) void {
     allocator.free(self.buf);
 }
 
-pub fn get(self: @This(), index: Index) ?[]const u8 {
-    if (index == 0 or index >= self.buf.len) return null;
+pub fn get(self: @This(), index: Index) []const u8 {
     const len = self.buf[index];
     return self.buf[index + 1..][0..len];
 }
@@ -43,7 +42,7 @@ pub const Builder = struct {
         return gop.value_ptr.*;
     }
 
-    pub fn get(self: @This(), index: Index) ?[]const u8 {
+    pub fn get(self: @This(), index: Index) []const u8 {
         const tmp = StringPool{ .buf = self.buf.items };
         return tmp.get(index);
     }

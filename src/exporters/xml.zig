@@ -3,7 +3,9 @@ depth: usize = 0,
 tab_str: []const u8 = "\t",
 tags: std.BoundedArray([]const u8, max_depth) = .{},
 in_variant: bool = false,
+prev_type: Morpheme.Tags.Type = .root,
 
+pub const ext = "xml";
 const max_depth = 8;
 
 pub fn header(self: *@This()) !void {
@@ -115,10 +117,18 @@ fn morpheme(self: *@This(), book_: Bible.Book, i: Bible.StringPool.Index) !void 
     const str = book_.pool.get(m.text);
 
     try self.open("m");
-    if (!m.source.eql(book_.source)) try self.anyAttribute("source",  m.source);
-    if (str.len > 0) try self.anyAttribute("type", m.flags.type);
-    if (!m.strong.isNull()) try self.anyAttribute("strong",  m.strong);
-    if (!m.code.isNull()) try self.anyAttribute("code",  m.code);
+    if (!m.tags.source.eql(book_.source)) try self.anyAttribute("source",  m.tags.source);
+    if (str.len > 0) try self.anyAttribute("type", m.tags.type);
+    if (m.strong_n != 0 and m.tags.lang != .unknown) {
+        try self.underlying.print(" {s}=\"", .{ "strong" });
+        try m.writeStrong(self.underlying);
+        try self.underlying.writeByte('"');
+    }
+    if (!m.grammar.isNull()) {
+        try self.underlying.print(" {s}=\"", .{ "grammar" });
+        try m.writeGrammar(self.underlying);
+        try self.underlying.writeByte('"');
+    }
     try self.endOpen();
     try self.text(str);
     try self.close();
@@ -135,18 +145,27 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
     try self.anyAttribute("source", book_.source);
     try self.endOpen();
 
-    // for (book_.morphemes) |m2| {
-    //     try m2.source.write(std.io.getStdErr().writer());
-    //     std.debug.print(" {s} {}\n", .{ book_.pool.get(m2.text), m2.flags });
-    // }
-
     var i: Bible.StringPool.Index = 0;
     while (i < book_.morphemes.len) : (i += 1) {
         const m = book_.morphemes[i];
-        const new_source = i > 0 and !book_.morphemes[i - 1].source.eql(m.source);
+        const new_source = i > 0 and !book_.morphemes[i - 1].tags.source.eql(m.tags.source);
 
-        if (m.flags.starts_word and i != 0) try self.close();
-        if (m.flags.starts_variant) {
+        defer self.prev_type = m.tags.type;
+        const starts_word = switch (m.tags.type) {
+            .root => switch (self.prev_type) {
+                .prefix => false,
+                else => true,
+            },
+           .prefix => switch (self.prev_type) {
+               .prefix => false,
+               else => true,
+           },
+           .suffix => false,
+           .punctuation => false,
+        };
+
+        if (starts_word and i != 0) try self.close();
+        if (m.tags.variant == .start) {
             if (self.in_variant) {
                try self.close();
                try self.close();
@@ -159,14 +178,14 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
             try self.close();
             try self.option();
         }
-        if (m.flags.starts_word) {
+        if (starts_word) {
             try self.open("w");
             try self.endOpen();
         }
 
         try self.morpheme(book_, i);
 
-        if (m.flags.ends_variant) {
+        if (m.tags.variant == .end) {
             try self.close();
             try self.close();
             self.in_variant = false;

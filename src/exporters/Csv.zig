@@ -2,6 +2,7 @@ underlying: std.io.AnyWriter,
 
 const field_sep = ',';
 const row_sep = '\n';
+pub const ext = "csv";
 
 const fields = [_][]const u8{
     "source",
@@ -64,7 +65,7 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
     for (book_.morphemes, 0..) |m, i| {
         try self.any(m.tags.source);
         try self.fieldSep();
-        try self.any(m.tags.variant);
+        if (m.tags.variant != .none) try self.any(m.tags.variant);
         try self.fieldSep();
         try self.any(m.tags.type);
         try self.fieldSep();

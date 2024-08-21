@@ -174,7 +174,6 @@ const Parser = struct {
                     .source = self.ref.source,
                      // correct type will later be set from {Strong} OR if variant from alignment
                     .type = if (is_punctuation) .punctuation else  .root,
-                    ._padding = if (starts_word) 1 else 0,
                 },
                 .text = pooled,
             });
@@ -391,7 +390,13 @@ fn testParse(line: []const u8, expected: []const Morpheme) !void {
     defer parser.deinit();
 
     const actual = try parser.parseLine(line);
-    try std.testing.expectEqualSlices(Morpheme, actual, expected);
+    // TODO: implement `expectEqualSlices` with untagged union support
+    // OR use std.MultiArrayList
+    for (expected, actual) |a, b| {
+        try std.testing.expectEqual(a.tags, b.tags);
+        try std.testing.expectEqual(a.strong_n, b.strong_n);
+        try std.testing.expectEqual(a.strong_sense, b.strong_sense);
+    }
 }
 
 test "prefix/suffix" {
@@ -400,25 +405,31 @@ test "prefix/suffix" {
         ,
         &[_]Morpheme{
             Morpheme{
-                .source = SourceSet{ .leningrad = true },
-                .tags = .{ .type = .prefix },
+                .tags = .{
+                    .source = SourceSet{ .leningrad = true },
+                    .type = .prefix,
+                    .lang = .hebrew,
+                },
                 .text = 1,
-                .strong = .{ .lang = .hebrew, .n = 9002 },
-                .code = try Bible.Morpheme.Code.parse("HC"),
+                .strong_n = 9002,
             },
             Morpheme{
-                .source = SourceSet{ .leningrad = true },
-                .tags = .{ .type = .prefix },
+                .tags = .{
+                    .source = SourceSet{ .leningrad = true },
+                    .type = .prefix,
+                    .lang = .hebrew,
+                },
                 .text = 2,
-                .strong = .{ .lang = .hebrew, .n = 9007 },
-                .code = try Bible.Morpheme.Code.parse("HTr"),
+                .strong_n = 9007,
             },
             Morpheme{
-                .source = SourceSet{ .leningrad = true },
-                .tags = .{ .type = .root },
+                .tags = .{
+                    .source = SourceSet{ .leningrad = true },
+                    .type = .root,
+                    .lang = .hebrew,
+                },
                 .text = 3,
-                .strong = .{ .lang = .hebrew, .n = 2449 },
-                .code = try Bible.Morpheme.Code.parse("HVqp1cs"),
+                .strong_n = 2449,
             },
         }
     );

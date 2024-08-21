@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const SourceSet = packed struct {
+pub const SourceSet = packed struct(u15) {
     leningrad: bool = false,
     restored: bool = false, // from Leningrad parallels
     lxx: bool = false,

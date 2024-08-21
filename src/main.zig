@@ -50,7 +50,7 @@ pub fn main() !void {
 
     var iter = bible.books.iterator();
     while (iter.next()) |kv| {
-        thread_pool.spawnWg(&wg, writeFile, .{ allocator, outdir, kv.value_ptr.* });
+        thread_pool.spawnWg(&wg, writeFiles, .{ allocator, outdir, kv.value_ptr.* });
     }
     thread_pool.waitAndWork(&wg);
 }
@@ -62,28 +62,34 @@ fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
     };
 }
 
-fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) !void {
-    const fname = try std.fmt.allocPrint(allocator, "{s}.csv", .{ @tagName(book.name) });
+fn exportFile(comptime Exporter: type, allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book,) !void {
+    const fname = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ @tagName(book.name), Exporter.ext });
     defer allocator.free(fname);
 
     const file = try outdir.createFile(fname, .{});
     defer file.close();
-    var out = exporters.Csv{ .underlying = file.writer().any() };
-    // var out = exporters.Xml{ .underlying = file.writer().any() };
+    var buffered = std.io.bufferedWriter(file.writer());
+
+    var out = Exporter{ .underlying = buffered.writer().any() };
     try out.header();
     try out.book(book);
-
-    std.debug.print(
-        "{d:>5} words {d:>5} morphemes ({d:>5} unique) {s}\n",
-        .{ book.n_words, book.morphemes.len, book.pool.n_unique, fname },
-    );
+    try buffered.flush();
 }
 
-fn writeFile(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) void {
-    writeFile2(allocator, outdir, book) catch |e| {
+fn writeFiles2(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) !void {
+    try exportFile(exporters.Csv, allocator, outdir, book);
+    try exportFile(exporters.Xml, allocator, outdir, book);
+}
+
+fn writeFiles(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) void {
+    writeFiles2(allocator, outdir, book) catch |e| {
         std.debug.print("Error writing {s}: {}\n", .{ @tagName(book.name), e });
-        std.process.exit(2);
     };
+
+    std.debug.print(
+        "{s} {d:>5} words {d:>5} morphemes ({d:>5} unique)\n",
+        .{ @tagName(book.name), book.n_words, book.morphemes.len, book.pool.n_unique },
+    );
 }
 
 test {

@@ -11,8 +11,8 @@ pub const Tags = packed struct(u32) {
     lang: Lang = .unknown,
     _padding: u11 = 0,
 
-    const Type = enum(u2) { root, prefix, suffix, punctuation };
-    const Variant = enum(u2) {
+    pub const Type = enum(u2) { root, prefix, suffix, punctuation };
+    pub const Variant = enum(u2) {
         none,
         start,
         /// last morpheme, not last variant start
@@ -43,20 +43,18 @@ pub fn writeStrong(self: @This(), writer: anytype) !void {
 }
 
 pub fn writeGrammar(self: @This(), writer: anytype) !void {
+    if (self.grammar.isNull()) return;
     switch (self.tags.lang) {
         .unknown => return,
         .hebrew => {
-            if (self.grammar.hebrew.tag == .unknown) return;
             try writer.writeByte('H');
             try self.grammar.hebrew.write(writer);
         },
         .aramaic => {
-            if (self.grammar.aramaic.tag == .unknown) return;
             try writer.writeByte('A');
             try self.grammar.aramaic.write(writer);
         },
         .greek => {
-            if (self.grammar.greek.tag == .unknown) return;
             try writer.writeByte('G');
             try self.grammar.greek.write(writer);
         },

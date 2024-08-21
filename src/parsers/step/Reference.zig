@@ -36,7 +36,8 @@ pub fn parse(ref: []const u8) !@This() {
     var variants = [_]SourceSet{.{}} ** max_variants;
     if (source_end != ref.len) {
         const variant_end = std.mem.lastIndexOfScalar(u8, ref, ')') orelse return error.MissingVariantEnd;
-        var split = std.mem.splitScalar(u8, ref[source_end + 1 .. variant_end], ';');
+        // ; was changed to + on 2024-08-21
+        var split = std.mem.splitAny(u8, ref[source_end + 1 .. variant_end], ";+");
         var j: usize = 0;
         while (split.next()) |s| : (j += 1) {
             if (j > variants.len) return error.TooManyVariants;

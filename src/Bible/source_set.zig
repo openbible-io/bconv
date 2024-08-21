@@ -47,7 +47,7 @@ pub const SourceSet = packed struct(u15) {
                 '/',
                 => {},
                 else => {
-                    std.debug.print("unknown source {c}\n", .{c});
+                    std.debug.print("unknown source {c} in {s}\n", .{ c, str });
                     return error.InvalidSource;
                 },
             }

@@ -2,10 +2,17 @@ const std = @import("std");
 
 pub fn eql(a: anytype, b: @TypeOf(a)) bool {
     return switch (@TypeOf(a)) {
-        .Type, .Void, .NoReturn, .Undefined, .Null, .ErrorUnion, .ErrorSet, .Opaque,
+        .Type,
+        .Void,
+        .NoReturn,
+        .Undefined,
+        .Null,
+        .ErrorUnion,
+        .ErrorSet,
+        .Opaque,
         .Frame,
         .AnyFrame,
- => true,
+        => true,
         .Vector, .Fn => unreachable,
         .Pointer => |p| switch (p.size) {
             .One, .Many, .C => return a == b,
@@ -21,8 +28,8 @@ pub fn eql(a: anytype, b: @TypeOf(a)) bool {
         .Array => |ai| std.mem.eql(ai.child, a, b),
         .Struct => |s| {
             if (s.backing_integer) |T| {
-                const av: T  = @intCast(a);
-                const bv: T  = @intCast(a);
+                const av: T = @intCast(a);
+                const bv: T = @intCast(a);
                 return av == bv;
             }
             for (s.fields) |f| {
@@ -42,7 +49,7 @@ pub fn eql(a: anytype, b: @TypeOf(a)) bool {
             switch (a) {
                 inline else => |av, tag| {
                     return eql(av, @field(b, @tagName(tag)));
-                }
+                },
             }
         },
         inline .ComptimeFloat, .ComptimeInt, .Bool, .Int, .Float, .Enum, .EnumLiteral => a == b,

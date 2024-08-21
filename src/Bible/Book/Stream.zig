@@ -50,7 +50,7 @@ pub fn readTag(self: *@This()) !?Tag {
 }
 
 pub fn next(self: *@This()) !?Element {
-    return if (try self.readTag()) |tag|  switch (tag) {
+    return if (try self.readTag()) |tag| switch (tag) {
         .word => {
             const ref = try self.readStructPtr(Word.Reference);
             return .{ .word = WordIter{ .ref = ref, .reader = self } };
@@ -59,7 +59,8 @@ pub fn next(self: *@This()) !?Element {
         .variant,
         .option,
         .punctuation,
-        .end, => unreachable
+        .end,
+        => unreachable,
     } else null;
 }
 
@@ -81,9 +82,9 @@ pub const WordIter = struct {
         } else return null;
 
         var res: MorphemePtr = undefined;
-        res.type  = try self.reader.readEnumPtr(Morpheme.Type);
-        res.strong =  try self.reader.readStructPtr(Morpheme.Strong);
-        res.code =  try self.reader.readStructPtr(Morpheme.Code);
+        res.type = try self.reader.readEnumPtr(Morpheme.Type);
+        res.strong = try self.reader.readStructPtr(Morpheme.Strong);
+        res.code = try self.reader.readStructPtr(Morpheme.Code);
         res.text = try self.reader.readString();
         return res;
     }
@@ -100,6 +101,6 @@ const std = @import("std");
 const mod = @import("../mod.zig");
 const Word = mod.Word;
 const Tag = mod.Tag;
-const  Morpheme = mod.Morpheme;
+const Morpheme = mod.Morpheme;
 const Reader = @This();
 const StringLen = u8;

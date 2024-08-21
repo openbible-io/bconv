@@ -7,7 +7,7 @@ pub fn deinit(self: @This(), allocator: Allocator) void {
 
 pub fn get(self: @This(), index: Index) []const u8 {
     const len = self.buf[index];
-    return self.buf[index + 1..][0..len];
+    return self.buf[index + 1 ..][0..len];
 }
 
 pub const Builder = struct {

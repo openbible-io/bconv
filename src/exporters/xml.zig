@@ -17,7 +17,7 @@ pub fn header(self: *@This()) !void {
 fn open(self: *@This(), tag: []const u8) !void {
     try self.tab();
     self.depth += 1;
-    try self.underlying.print("<{s}", .{ tag });
+    try self.underlying.print("<{s}", .{tag});
     try self.tags.append(tag);
 }
 
@@ -33,14 +33,14 @@ fn endOpen(self: *@This()) !void {
 fn text(self: *@This(), str: []const u8) !void {
     if (str.len == 0) return;
     try self.tab();
-    try self.underlying.print("{s}", .{ str });
+    try self.underlying.print("{s}", .{str});
 }
 
 fn close(self: *@This()) !void {
     self.depth -= 1;
     try self.tab();
     const tag = self.tags.pop();
-    try self.underlying.print("</{s}>", .{ tag });
+    try self.underlying.print("</{s}>", .{tag});
 }
 
 fn assertClose(self: *@This(), tag: []const u8) !void {
@@ -80,7 +80,7 @@ fn element(self: *@This(), comptime T: type, value: T) !void {
 
 fn children(self: *@This(), comptime T: type, value: T) !void {
     switch (@typeInfo(T)) {
-       inline .Pointer, .Array => |info| {
+        inline .Pointer, .Array => |info| {
             if (info.child == u8) {
                 try self.text(value);
             } else {
@@ -92,13 +92,13 @@ fn children(self: *@This(), comptime T: type, value: T) !void {
 }
 
 fn attribute(self: *@This(), key: []const u8, val: []const u8) !void {
-    try self.underlying.print(" {s}=\"{s}\"", .{ key,  val });
+    try self.underlying.print(" {s}=\"{s}\"", .{ key, val });
 }
 
 fn anyAttribute(self: *@This(), key: []const u8, val: anytype) !void {
     const T = @TypeOf(val);
     if (std.meta.hasFn(T, "write")) {
-        try self.underlying.print(" {s}=\"", .{ key });
+        try self.underlying.print(" {s}=\"", .{key});
         try val.write(self.underlying);
         try self.underlying.writeByte('"');
     } else switch (@typeInfo(T)) {
@@ -106,8 +106,8 @@ fn anyAttribute(self: *@This(), key: []const u8, val: anytype) !void {
         .Optional => {
             if (val) |v| try self.anyAttribute(key, v);
         },
-        .Bool => try self.attribute(key,  if (val) "true" else "false"),
-        .Enum => try self.attribute(key,  @tagName(val)),
+        .Bool => try self.attribute(key, if (val) "true" else "false"),
+        .Enum => try self.attribute(key, @tagName(val)),
         else => {},
     }
 }
@@ -117,15 +117,15 @@ fn morpheme(self: *@This(), book_: Bible.Book, i: Bible.StringPool.Index) !void 
     const str = book_.pool.get(m.text);
 
     try self.open("m");
-    if (!m.tags.source.eql(book_.source)) try self.anyAttribute("source",  m.tags.source);
+    if (!m.tags.source.eql(book_.source)) try self.anyAttribute("source", m.tags.source);
     if (str.len > 0) try self.anyAttribute("type", m.tags.type);
     if (m.strong_n != 0 and m.tags.lang != .unknown) {
-        try self.underlying.print(" {s}=\"", .{ "strong" });
+        try self.underlying.print(" {s}=\"", .{"strong"});
         try m.writeStrong(self.underlying);
         try self.underlying.writeByte('"');
     }
     if (!m.grammar.isNull()) {
-        try self.underlying.print(" {s}=\"", .{ "grammar" });
+        try self.underlying.print(" {s}=\"", .{"grammar"});
         try m.writeGrammar(self.underlying);
         try self.underlying.writeByte('"');
     }
@@ -156,19 +156,19 @@ pub fn book(self: *@This(), book_: Bible.Book) !void {
                 .prefix => false,
                 else => true,
             },
-           .prefix => switch (self.prev_type) {
-               .prefix => false,
-               else => true,
-           },
-           .suffix => false,
-           .punctuation => false,
+            .prefix => switch (self.prev_type) {
+                .prefix => false,
+                else => true,
+            },
+            .suffix => false,
+            .punctuation => false,
         };
 
         if (starts_word and i != 0) try self.close();
         if (m.tags.variant == .start) {
             if (self.in_variant) {
-               try self.close();
-               try self.close();
+                try self.close();
+                try self.close();
             }
             self.in_variant = true;
             try self.open("variant");

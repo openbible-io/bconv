@@ -94,8 +94,8 @@ const Parser = struct {
             iter.it.i += 1;
 
             const children = if (is_spelling) brk: {
-                const text_end = iter.findNextAny(&[_]u21{ '¦' }) orelse buf.len;
-                const text = std.mem.trim(u8, buf[source_set_end + 1..text_end], " ");
+                const text_end = iter.findNextAny(&[_]u21{'¦'}) orelse buf.len;
+                const text = std.mem.trim(u8, buf[source_set_end + 1 .. text_end], " ");
                 if (text.len == 0) break;
                 iter.consumeAny(&[_]u21{ ' ', '¦', ';' });
 
@@ -110,7 +110,7 @@ const Parser = struct {
                 const equal = iter.findNextScalar('=') orelse return error.VariantMissingStrongGrammarDelimiter;
                 paren_end = iter.findNextScalar(')') orelse return error.VariantMissingRightParen2;
                 const strong = buf[paren_start..equal];
-                const grammar = buf[equal + 1..paren_end];
+                const grammar = buf[equal + 1 .. paren_end];
 
                 break :brk try self.parseMorphemes(text, strong, grammar);
             };
@@ -129,10 +129,7 @@ const Parser = struct {
         if (!has_variants) return;
 
         if (main.len == 0) {
-            const empty_morph = Morpheme{ .tags = .{
-                .source = self.ref.source,
-                .variant = .start
-            }};
+            const empty_morph = Morpheme{ .tags = .{ .source = self.ref.source, .variant = .start } };
             try self.builder.morphemes.append(empty_morph);
         } else {
             main[0].tags.variant = .start;
@@ -172,8 +169,8 @@ const Parser = struct {
             try self.builder.morphemes.append(Morpheme{
                 .tags = .{
                     .source = self.ref.source,
-                     // correct type will later be set from {Strong} OR if variant from alignment
-                    .type = if (is_punctuation) .punctuation else  .root,
+                    // correct type will later be set from {Strong} OR if variant from alignment
+                    .type = if (is_punctuation) .punctuation else .root,
                 },
                 .text = pooled,
             });
@@ -201,17 +198,16 @@ const Parser = struct {
     ) ![]Morpheme {
         // Only the first grammar includes the language...
         const lang: Morpheme.Lang = if (grammars.len < 1)
-           .unknown
-        else
-            switch (grammars[0]) {
-                'H' => .hebrew,
-                'A' => .aramaic,
-                'G' => .greek,
-                else => |c| {
-                    self.warn("unknown morph language {c}", .{ c });
-                    return error.GrammarInvalidLang;
-                }
-            };
+            .unknown
+        else switch (grammars[0]) {
+            'H' => .hebrew,
+            'A' => .aramaic,
+            'G' => .greek,
+            else => |c| {
+                self.warn("unknown morph language {c}", .{c});
+                return error.GrammarInvalidLang;
+            },
+        };
         const grammars_trimmed = if (lang == .unknown) grammars else grammars[1..];
 
         const res = try self.parseText(texts);
@@ -241,19 +237,19 @@ const Parser = struct {
                     'H' => switch (lang) {
                         .unknown, .hebrew, .aramaic => .hebrew,
                         else => {
-                            self.err("grammar lang is {s} but strong lang is hebrew", .{ @tagName(lang) });
+                            self.err("grammar lang is {s} but strong lang is hebrew", .{@tagName(lang)});
                             return error.InvalidStrongLang;
-                        }
+                        },
                     },
                     'G' => switch (lang) {
                         .unknown, .greek => .greek,
                         else => {
-                            self.err("grammar lang is {s} but strong lang is greek", .{ @tagName(lang) });
+                            self.err("grammar lang is {s} but strong lang is greek", .{@tagName(lang)});
                             return error.InvalidStrongLang;
                         },
-                        },
+                    },
                     else => |c| {
-                        self.err("invalid strong lang {c}", .{ c });
+                        self.err("invalid strong lang {c}", .{c});
                         return error.InvalidStrongLang;
                     },
                 };
@@ -265,7 +261,7 @@ const Parser = struct {
                 break;
             }
             const text = self.builder.pool.get(m.text);
-            if (m.strong_n == 0) self.warn("{s} missing strong", .{ text });
+            if (m.strong_n == 0) self.warn("{s} missing strong", .{text});
 
             // punctuation does not have grammar
             if (m.tags.type == .punctuation) continue;
@@ -281,7 +277,7 @@ const Parser = struct {
                 };
                 break;
             }
-            if (m.grammar.isNull()) self.warn("{s} missing grammar", .{ text });
+            if (m.grammar.isNull()) self.warn("{s} missing grammar", .{text});
         }
 
         return res;
@@ -329,7 +325,7 @@ const Parser = struct {
         self.line_no += 1;
         return self.parseLine2(line) catch |e| {
             std.debug.print("{s}:{d} {}:\n", .{ self.fname, self.line_no, e });
-            std.debug.print("{s}\n", .{ line });
+            std.debug.print("{s}\n", .{line});
             return e;
         };
     }
@@ -367,21 +363,21 @@ const Utf8Iter = struct {
         return null;
     }
 
-     fn consumeAny(self: *@This(), cps: []const u21) void {
-            while (self.it.nextCodepoint()) |cp2| {
-                var has_match = false;
-                for (cps) |cp| {
-                    if (cp == cp2) {
-                        has_match = true;
-                        break;
-                    }
-                }
-                if (!has_match) {
-                    self.it.i -= std.unicode.utf8CodepointSequenceLength(cp2) catch unreachable;
+    fn consumeAny(self: *@This(), cps: []const u21) void {
+        while (self.it.nextCodepoint()) |cp2| {
+            var has_match = false;
+            for (cps) |cp| {
+                if (cp == cp2) {
+                    has_match = true;
                     break;
                 }
             }
-     }
+            if (!has_match) {
+                self.it.i -= std.unicode.utf8CodepointSequenceLength(cp2) catch unreachable;
+                break;
+            }
+        }
+    }
 };
 
 fn testParse(line: []const u8, expected: []const Morpheme) !void {
@@ -402,37 +398,35 @@ fn testParse(line: []const u8, expected: []const Morpheme) !void {
 test "prefix/suffix" {
     try testParse(
         \\Ecc.2.19#11=L	וְ/שֶׁ/חָכַ֖מְתִּי	ve./she./cha.Kham.ti	and/ that/ I worked skillfully	H9002/H9007/{H2449}	HC/Tr/Vqp1cs			H2449			H9002=ו=and/H9007=ש=which/{H2449=חָכַם=be wise}
-        ,
-        &[_]Morpheme{
-            Morpheme{
-                .tags = .{
-                    .source = SourceSet{ .leningrad = true },
-                    .type = .prefix,
-                    .lang = .hebrew,
-                },
-                .text = 1,
-                .strong_n = 9002,
+    , &[_]Morpheme{
+        Morpheme{
+            .tags = .{
+                .source = SourceSet{ .leningrad = true },
+                .type = .prefix,
+                .lang = .hebrew,
             },
-            Morpheme{
-                .tags = .{
-                    .source = SourceSet{ .leningrad = true },
-                    .type = .prefix,
-                    .lang = .hebrew,
-                },
-                .text = 2,
-                .strong_n = 9007,
+            .text = 1,
+            .strong_n = 9002,
+        },
+        Morpheme{
+            .tags = .{
+                .source = SourceSet{ .leningrad = true },
+                .type = .prefix,
+                .lang = .hebrew,
             },
-            Morpheme{
-                .tags = .{
-                    .source = SourceSet{ .leningrad = true },
-                    .type = .root,
-                    .lang = .hebrew,
-                },
-                .text = 3,
-                .strong_n = 2449,
+            .text = 2,
+            .strong_n = 9007,
+        },
+        Morpheme{
+            .tags = .{
+                .source = SourceSet{ .leningrad = true },
+                .type = .root,
+                .lang = .hebrew,
             },
-        }
-    );
+            .text = 3,
+            .strong_n = 2449,
+        },
+    });
 }
 
 // test "variant" {

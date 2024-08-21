@@ -42,11 +42,14 @@ pub const SourceSet = packed struct(u15) {
                 'p' => res.punctuation = true,
                 's' => res.scribal = true,
                 'v' => res.variant = true,
-                ' ', '\t', '/', => {},
+                ' ',
+                '\t',
+                '/',
+                => {},
                 else => {
-                    std.debug.print("unknown source {c}\n", .{ c });
+                    std.debug.print("unknown source {c}\n", .{c});
                     return error.InvalidSource;
-                }
+                },
             }
         }
 

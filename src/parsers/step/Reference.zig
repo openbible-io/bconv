@@ -16,27 +16,27 @@ pub fn parse(ref: []const u8) !@This() {
     const book_str = ref[0..first_dot];
     const book = try Bible.Book.Name.fromEnglish(book_str);
 
-    const chapter_str = ref[first_dot + 1..second_dot];
+    const chapter_str = ref[first_dot + 1 .. second_dot];
     const chapter = try std.fmt.parseInt(u8, chapter_str, 10);
 
     const verse_end = std.mem.indexOfAnyPos(u8, ref, second_dot + 1, "(#") orelse return error.MissingVerseEnd;
-    const verse_str = ref[second_dot + 1..verse_end];
+    const verse_str = ref[second_dot + 1 .. verse_end];
     const verse = try std.fmt.parseInt(u8, verse_str, 10);
 
     const word_start = std.mem.indexOfScalarPos(u8, ref, verse_end, '#') orelse return error.MissingWordStart;
     const source_start = std.mem.lastIndexOfScalar(u8, ref, '=') orelse return error.MissingSourceStart;
 
-    const word_str = ref[word_start + 1..source_start];
+    const word_str = ref[word_start + 1 .. source_start];
     const word = try std.fmt.parseInt(u8, word_str, 10);
 
     const source_end = std.mem.indexOfScalarPos(u8, ref, source_start, '(') orelse ref.len;
-    const source_str = ref[source_start + 1..source_end];
-    const source =  try SourceSet.parse(source_str);
+    const source_str = ref[source_start + 1 .. source_end];
+    const source = try SourceSet.parse(source_str);
 
     var variants = [_]SourceSet{.{}} ** max_variants;
     if (source_end != ref.len) {
         const variant_end = std.mem.lastIndexOfScalar(u8, ref, ')') orelse return error.MissingVariantEnd;
-        var split = std.mem.splitScalar(u8, ref[source_end + 1..variant_end], ';');
+        var split = std.mem.splitScalar(u8, ref[source_end + 1 .. variant_end], ';');
         var j: usize = 0;
         while (split.next()) |s| : (j += 1) {
             if (j > variants.len) return error.TooManyVariants;

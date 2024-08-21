@@ -2,7 +2,7 @@ const std = @import("std");
 const Offset = @import("./Book.zig").Offset;
 
 pub const String = extern struct {
-    meta: packed struct (u8) {
+    meta: packed struct(u8) {
         len: u7,
         is_ptr: bool,
     },
@@ -17,5 +17,3 @@ pub const String = extern struct {
         return self.data_or_offset[0..self.len];
     }
 };
-
-

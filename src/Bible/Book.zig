@@ -14,8 +14,8 @@ morphemes: []Morpheme,
 n_words: StringPool.Index,
 
 pub fn deinit(self: *@This(), allocator: Allocator) void {
-   allocator.free(self.morphemes);
-   self.pool.deinit(allocator);
+    allocator.free(self.morphemes);
+    self.pool.deinit(allocator);
 }
 
 pub fn normalize(self: *@This()) !void {

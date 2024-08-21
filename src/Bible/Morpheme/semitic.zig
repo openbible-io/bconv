@@ -126,9 +126,9 @@ pub const VerbGender = enum(u2) {
     common,
 
     const mappings = comptimeMappings(@This(), .{
-        .{ "m",  .male },
-        .{ "f",  .female },
-        .{ "c",  .common },
+        .{ "m", .male },
+        .{ "f", .female },
+        .{ "c", .common },
     });
 };
 
@@ -232,19 +232,19 @@ pub fn Semitic(comptime VerbStemType: type) type {
                 'T' => init(.particle, try Particle.parse(&r)),
                 'V' => {
                     _ = r.next(); // stem
-                   switch (r.next() orelse return error.MissingVerbForm) {
-                       'r', 's' => {
-                           r.pos -= 2;
-                           return init(.verb_participle, try VerbParticiple.parse(&r));
-                       },
-                       'a', 'c' => {
-                           r.pos -= 2;
-                           return init(.verb_infinitive, try VerbInfinitive.parse(&r));
-                       },
-                       else => {
-                           r.pos -= 2;
-                           return init(.verb_other, try VerbOther.parse(&r));
-                       }
+                    switch (r.next() orelse return error.MissingVerbForm) {
+                        'r', 's' => {
+                            r.pos -= 2;
+                            return init(.verb_participle, try VerbParticiple.parse(&r));
+                        },
+                        'a', 'c' => {
+                            r.pos -= 2;
+                            return init(.verb_infinitive, try VerbInfinitive.parse(&r));
+                        },
+                        else => {
+                            r.pos -= 2;
+                            return init(.verb_other, try VerbOther.parse(&r));
+                        },
                     }
                 },
                 else => return error.SemiticCode,
@@ -695,9 +695,9 @@ fn Mappings(comptime Enum: type) type {
         to_string: std.EnumArray(Enum, []const u8),
 
         pub fn parse(self: @This(), c: u8) !Enum {
-            if (self.to_enum.get(&[_]u8{ c })) |v| return v;
+            if (self.to_enum.get(&[_]u8{c})) |v| return v;
             // std.debug.print("{c} {s}\n", .{ c, @typeName(Enum) });
-            return  error.MorphEnumMapping;
+            return error.MorphEnumMapping;
         }
 
         pub fn maybeParse(self: @This(), r: *ByteReader, default: Enum) Enum {
@@ -740,5 +740,10 @@ test "Hebrew.Verb" {
     }, "pcc");
 
     try testParse(ProperNoun{ .gender = .location }, "l");
-    try testParse(Noun{ .type = .common, .gender = .male, .number = .singular, .state = .construct, }, "cmsc");
+    try testParse(Noun{
+        .type = .common,
+        .gender = .male,
+        .number = .singular,
+        .state = .construct,
+    }, "cmsc");
 }

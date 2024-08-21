@@ -37,7 +37,7 @@ pub fn main() !void {
     defer bible.deinit();
 
     for (opt.positional_args.items) |fname| {
-        thread_pool.spawnWg(&wg, parseBible, .{ allocator,  fname, &bible });
+        thread_pool.spawnWg(&wg, parseBible, .{ allocator, fname, &bible });
     }
     thread_pool.waitAndWork(&wg);
     wg.reset();
@@ -62,7 +62,12 @@ fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
     };
 }
 
-fn exportFile(comptime Exporter: type, allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book,) !void {
+fn exportFile(
+    comptime Exporter: type,
+    allocator: Allocator,
+    outdir: std.fs.Dir,
+    book: Bible.Book,
+) !void {
     const fname = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ @tagName(book.name), Exporter.ext });
     defer allocator.free(fname);
 

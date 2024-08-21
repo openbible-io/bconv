@@ -6,7 +6,7 @@ grammar: Grammar = .{ .hebrew = .{} },
 
 pub const Tags = packed struct(u32) {
     source: SourceSet = .{},
-   variant: Variant = .none,
+    variant: Variant = .none,
     type: Type = .root,
     lang: Lang = .unknown,
     _padding: u11 = 0,
@@ -21,7 +21,7 @@ pub const Tags = packed struct(u32) {
 };
 
 pub const Lang = enum(u2) { unknown, hebrew, aramaic, greek };
-pub const Grammar =  packed union {
+pub const Grammar = packed union {
     hebrew: Hebrew,
     aramaic: Aramaic,
     greek: Aramaic,
@@ -38,7 +38,7 @@ pub fn writeStrong(self: @This(), writer: anytype) !void {
         .hebrew, .aramaic => 'H',
         .greek => 'G',
     });
-    try writer.print("{d:0>4}", .{ self.strong_n });
+    try writer.print("{d:0>4}", .{self.strong_n});
     if (self.strong_sense != 0) try writer.writeByte(self.strong_sense);
 }
 

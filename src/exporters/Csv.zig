@@ -23,7 +23,7 @@ pub fn header(self: *@This()) !void {
 
 // https://www.rfc-editor.org/rfc/rfc4180
 fn text(self: *@This(), str: []const u8) !void {
-    if (std.mem.indexOfAny(u8, str, &[_]u8{field_sep, row_sep}) != null) {
+    if (std.mem.indexOfAny(u8, str, &[_]u8{ field_sep, row_sep }) != null) {
         try self.underlying.writeByte('"');
         for (str) |c| {
             if (c == '"') {
@@ -34,7 +34,7 @@ fn text(self: *@This(), str: []const u8) !void {
         }
         try self.underlying.writeByte('"');
     } else {
-        try self.underlying.print("{s}", .{ str });
+        try self.underlying.print("{s}", .{str});
     }
 }
 
@@ -43,7 +43,7 @@ fn any(self: *@This(), val: anytype) !void {
     if (std.meta.hasFn(T, "write")) {
         try val.write(self.underlying);
     } else switch (@typeInfo(T)) {
-        inline .Int, .Float => try self.underlying.print("{d}", .{ val }),
+        inline .Int, .Float => try self.underlying.print("{d}", .{val}),
         .Optional => {
             if (val) |v| try self.any(v);
         },

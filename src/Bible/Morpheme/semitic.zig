@@ -173,8 +173,8 @@ pub const Person = enum(u2) {
 
 pub fn Semitic(comptime VerbStemType: type) type {
     return packed struct {
-        tag: Tag,
-        value: Value,
+        tag: Tag = .unknown,
+        value: Value = .{ .adverb = {} },
 
         pub const Tag = enum(u8) {
             unknown,

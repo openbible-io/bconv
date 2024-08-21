@@ -59,27 +59,15 @@ test {
         .chapter = 1,
         .verse = 2,
         .word = 3,
-        .source = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .leningrad = true },
     }, try Reference.parse("Gen.1.2#03=L"));
-
-    try std.testing.expectEqual(Reference{
-        .book = .gen,
-        .chapter = 1,
-        .verse = 2,
-        .word = 3,
-        .source = SourceSet{ .is_significant = true, .leningrad = true },
-        .variants = [_]SourceSet{
-            .{ .bhs = true },
-            .{ .punctuation = true },
-        },
-    }, try Reference.parse("Gen.1.2(2.3)#03=L(b; p)"));
 
     try std.testing.expectEqual(Reference{
         .book = .gen,
         .chapter = 10,
         .verse = 20,
         .word = 30,
-        .source = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .leningrad = true },
         .variants = [_]SourceSet{
             .{ .bhs = true },
             .{ .punctuation = true },
@@ -91,7 +79,7 @@ test {
         .chapter = 31,
         .verse = 55,
         .word = 12,
-        .source = SourceSet{ .is_significant = true, .leningrad = true },
+        .source = SourceSet{ .leningrad = true },
     }, try Reference.parse("Gen.31.55(32.1)#12=L"));
 }
 

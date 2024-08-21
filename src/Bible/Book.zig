@@ -64,14 +64,6 @@ pub const Builder = struct {
         self.pool.deinit();
     }
 
-    pub fn addMorph(self: *@This(), morph: Morpheme) !void {
-        if (self.variant_ended) {
-            morph.flags.variant = .ended;
-            self.variant_ended = false;
-        }
-        try self.morphemes.append(morph);
-    }
-
     pub fn toOwned(self: *@This()) !Book {
         return .{
             .name = self.name,

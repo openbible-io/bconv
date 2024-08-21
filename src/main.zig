@@ -63,14 +63,15 @@ fn parseBible(allocator: Allocator, fname: []const u8, out: *Bible) void {
 }
 
 fn writeFile2(allocator: Allocator, outdir: std.fs.Dir, book: Bible.Book) !void {
-    const fname = try std.fmt.allocPrint(allocator, "{s}.xml", .{ @tagName(book.name) });
+    const fname = try std.fmt.allocPrint(allocator, "{s}.csv", .{ @tagName(book.name) });
     defer allocator.free(fname);
 
     const file = try outdir.createFile(fname, .{});
     defer file.close();
-   var  xml = exporters.Xml{ .underlying = file.writer().any() };
-   try xml.header();
-    try xml.book(book);
+    var out = exporters.Csv{ .underlying = file.writer().any() };
+    // var out = exporters.Xml{ .underlying = file.writer().any() };
+    try out.header();
+    try out.book(book);
 
     std.debug.print(
         "{d:>5} words {d:>5} morphemes ({d:>5} unique) {s}\n",

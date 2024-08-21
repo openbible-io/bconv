@@ -41,10 +41,10 @@ pub fn parse(allocator: Allocator, fname: []const u8, out: *Bible) !void {
     const writer = line.writer();
     while (reader.streamUntilDelimiter(writer, '\n', null)) {
         defer line.clearRetainingCapacity();
-        try parser.parseLine(line.items);
+        _ = try parser.parseLine(line.items);
     } else |err| switch (err) {
         error.EndOfStream => {
-            if (line.items.len > 0) try parser.parseLine(line.items);
+            if (line.items.len > 0) _ = try parser.parseLine(line.items);
         },
         else => return err,
     }
@@ -114,7 +114,7 @@ const Parser = struct {
 
                 break :brk try self.parseMorphemes(text, strong, grammar);
             };
-            for (children) |*c| c.source = source_set;
+            for (children) |*c| c.tags.source = source_set;
         }
     }
 
@@ -129,10 +129,13 @@ const Parser = struct {
         if (!has_variants) return;
 
         if (main.len == 0) {
-            const empty_morph = Morpheme{ .flags = .{ .starts_word = true, .starts_variant = true }};
+            const empty_morph = Morpheme{ .tags = .{
+                .source = self.ref.source,
+                .variant = .start
+            }};
             try self.builder.morphemes.append(empty_morph);
         } else {
-            main[0].flags.starts_variant = true;
+            main[0].tags.variant = .start;
         }
 
         self.parseVariant(meaning, false) catch |e| {
@@ -142,7 +145,7 @@ const Parser = struct {
             self.warn("{} for spelling {s}", .{ e, spelling });
         };
 
-        self.builder.morphemes.items[self.builder.morphemes.items.len - 1].flags.ends_variant = true;
+        self.builder.morphemes.items[self.builder.morphemes.items.len - 1].tags.variant = .end;
     }
 
     fn parseText(self: *@This(), text: []const u8) ![]Morpheme {
@@ -167,14 +170,13 @@ const Parser = struct {
                 continue;
             }
             try self.builder.morphemes.append(Morpheme{
-                .source = self.ref.source,
-                .text = pooled,
-                .flags = .{
-                    .starts_word = starts_word,
-                     // if not punctuation, correct type will be set from {Strong}
-                     // OR if variant from alignment
+                .tags = .{
+                    .source = self.ref.source,
+                     // correct type will later be set from {Strong} OR if variant from alignment
                     .type = if (is_punctuation) .punctuation else  .root,
+                    ._padding = if (starts_word) 1 else 0,
                 },
+                .text = pooled,
             });
             // std.debug.print("{s} {}\n", .{ tok, starts_word });
             if (starts_word) self.builder.n_words += 1;
@@ -188,80 +190,111 @@ const Parser = struct {
         log.warn(format ++ " at {s}:{d}", args ++ .{ self.fname, self.line_no });
     }
 
+    fn err(self: @This(), comptime format: []const u8, args: anytype) void {
+        log.err(format ++ " at {s}:{d}", args ++ .{ self.fname, self.line_no });
+    }
+
     fn parseMorphemes(
         self: *@This(),
         texts: []const u8,
         strongs: []const u8,
         grammars: []const u8,
     ) ![]Morpheme {
-        const lang: ?Morpheme.Lang = if (grammars.len < 1)
-           null
+        // Only the first grammar includes the language...
+        const lang: Morpheme.Lang = if (grammars.len < 1)
+           .unknown
         else
             switch (grammars[0]) {
                 'H' => .hebrew,
                 'A' => .aramaic,
                 'G' => .greek,
                 else => |c| {
-                    std.debug.print("unknown morph language {c}\n", .{ c });
-                    return error.MorphInvalidLang;
+                    self.warn("unknown morph language {c}", .{ c });
+                    return error.GrammarInvalidLang;
                 }
             };
-        const grammars_trimmed = if (lang == null) grammars else grammars[1..];
+        const grammars_trimmed = if (lang == .unknown) grammars else grammars[1..];
 
         const res = try self.parseText(texts);
 
         var strong_iter = std.mem.splitAny(u8, strongs, "/\\");
         var grammar_iter = std.mem.splitAny(u8, grammars_trimmed, "/\\");
 
+        var seen_root = false;
         for (res) |*m| {
-            var seen_root = false;
-            const text = self.builder.pool.get(m.text);
             while (strong_iter.next()) |strong| {
                 const trimmed = std.mem.trim(u8, strong, " ");
-                if (trimmed.len == 0) continue; // probably a `//` word boundary
-
-                const left_brace = trimmed[0] == '{';
-                const is_root = left_brace or res.len == 1;
-                seen_root = is_root;
-                if (m.flags.type != .punctuation) {
-                    m.flags.type = if (is_root) .root else if (seen_root) .suffix else .prefix;
+                if (trimmed.len == 0) {
+                    seen_root = false;
+                    continue; // probably a `//` word boundary
                 }
-                m.strong = try Bible.Morpheme.Strong.parse(trimmed[if (left_brace) 1 else 0..]);
+
+                var stream = std.io.fixedBufferStream(trimmed);
+                var reader = stream.reader();
+
+                const first = try reader.readByte();
+                const is_root = first == '{' or res.len == 1;
+                seen_root = seen_root or is_root;
+                if (m.tags.type != .punctuation) {
+                    m.tags.type = if (is_root) .root else if (seen_root) .suffix else .prefix;
+                }
+                m.tags.lang = switch (if (first == '{') try reader.readByte() else first) {
+                    'H' => switch (lang) {
+                        .unknown, .hebrew, .aramaic => .hebrew,
+                        else => {
+                            self.err("grammar lang is {s} but strong lang is hebrew", .{ @tagName(lang) });
+                            return error.InvalidStrongLang;
+                        }
+                    },
+                    'G' => switch (lang) {
+                        .unknown, .greek => .greek,
+                        else => {
+                            self.err("grammar lang is {s} but strong lang is greek", .{ @tagName(lang) });
+                            return error.InvalidStrongLang;
+                        },
+                        },
+                    else => |c| {
+                        self.err("invalid strong lang {c}", .{ c });
+                        return error.InvalidStrongLang;
+                    },
+                };
+                var strong_n: [4]u8 = undefined;
+                _ = try reader.readAll(&strong_n);
+                m.strong_n = try std.fmt.parseInt(u16, &strong_n, 10);
+                m.strong_sense = reader.readByte() catch 0;
+                if (m.strong_sense == '}') m.strong_sense = 0;
                 break;
             }
-            if (m.strong.isNull()) {
-                self.warn("{s} ({s}) missing strong", .{ text, @tagName(m.flags.type) });
-            }
+            const text = self.builder.pool.get(m.text);
+            if (m.strong_n == 0) self.warn("{s} missing strong", .{ text });
 
             // punctuation does not have grammar
-            if (m.flags.type == .punctuation) continue;
+            if (m.tags.type == .punctuation) continue;
             while (grammar_iter.next()) |grammar| {
                 const trimmed = std.mem.trim(u8, grammar, " ");
                 if (trimmed.len == 0) continue; // probably a `//` word boundary
 
-                if (lang == null) return error.MorphCodeMissingLang;
-                m.code = switch (lang.?) {
+                m.grammar = switch (lang) {
+                    .unknown => return error.MorphCodeMissingLang,
                     .greek => return error.MorphCodeMissingLang,
-                    .hebrew => .{ .tag = .hebrew, .value = .{ .hebrew = try Morpheme.Hebrew.parse(trimmed) } },
-                    .aramaic => .{ .tag = .aramaic, .value = .{ .aramaic = try Morpheme.Aramaic.parse(trimmed) } },
+                    .hebrew => .{ .hebrew = try Morpheme.Hebrew.parse(trimmed) },
+                    .aramaic => .{ .aramaic = try Morpheme.Aramaic.parse(trimmed) },
                 };
                 break;
             }
-            if (m.code.isNull()) {
-                self.warn("{s} ({s}) missing grammar", .{ text, @tagName(m.flags.type) });
-            }
+            if (m.grammar.isNull()) self.warn("{s} missing grammar", .{ text });
         }
 
         return res;
     }
 
-    fn parseLine2(self: *@This(), line: []const u8) !void {
-        if (line.len == 0 or line[0] == '#') return;
+    fn parseLine2(self: *@This(), line: []const u8) ![]Morpheme {
+        if (line.len == 0 or line[0] == '#') return &[_]Morpheme{};
         var fields = std.mem.splitScalar(u8, line, '\t');
         // NRSV(Heb) Ref & type
         const ref_type = fields.first();
 
-        self.ref = Reference.parse(ref_type) catch return;
+        self.ref = Reference.parse(ref_type) catch return &[_]Morpheme{};
         self.builder = try self.bible_builder.getBook(self.ref.book, SourceSet{ .leningrad = true });
 
         const texts = fields.next() orelse return error.MissingFieldText;
@@ -276,15 +309,29 @@ const Parser = struct {
         // _ = fields.next() orelse return error.MissingFieldConjoin; // conjoin word
         // _ = fields.next() orelse return error.MissingFieldExpanded; // expanded Strong tags
 
-        const morphs = try self.parseMorphemes(texts, strongs, grammars);
-        try self.parseVariants(morphs, meaning_variants, spelling_variants);
+        const res = try self.parseMorphemes(texts, strongs, grammars);
+        var has_root = res.len == 0;
+        for (res) |m| {
+            if (m.tags.type == .root) {
+                has_root = true;
+                break;
+            }
+        }
+        if (!has_root) {
+            self.warn("missing root", .{});
+        }
+
+        try self.parseVariants(res, meaning_variants, spelling_variants);
+
+        return res;
     }
 
-    pub fn parseLine(self: *@This(), line: []const u8) !void {
+    pub fn parseLine(self: *@This(), line: []const u8) ![]Morpheme {
         self.line_no += 1;
-        self.parseLine2(line) catch |e| {
+        return self.parseLine2(line) catch |e| {
             std.debug.print("{s}:{d} {}:\n", .{ self.fname, self.line_no, e });
             std.debug.print("{s}\n", .{ line });
+            return e;
         };
     }
 };
@@ -337,3 +384,65 @@ const Utf8Iter = struct {
             }
      }
 };
+
+fn testParse(line: []const u8, expected: []const Morpheme) !void {
+    const allocator = std.testing.allocator;
+    var parser = Parser.init(allocator, "buffer");
+    defer parser.deinit();
+
+    const actual = try parser.parseLine(line);
+    try std.testing.expectEqualSlices(Morpheme, actual, expected);
+}
+
+test "prefix/suffix" {
+    try testParse(
+        \\Ecc.2.19#11=L	וְ/שֶׁ/חָכַ֖מְתִּי	ve./she./cha.Kham.ti	and/ that/ I worked skillfully	H9002/H9007/{H2449}	HC/Tr/Vqp1cs			H2449			H9002=ו=and/H9007=ש=which/{H2449=חָכַם=be wise}
+        ,
+        &[_]Morpheme{
+            Morpheme{
+                .source = SourceSet{ .leningrad = true },
+                .tags = .{ .type = .prefix },
+                .text = 1,
+                .strong = .{ .lang = .hebrew, .n = 9002 },
+                .code = try Bible.Morpheme.Code.parse("HC"),
+            },
+            Morpheme{
+                .source = SourceSet{ .leningrad = true },
+                .tags = .{ .type = .prefix },
+                .text = 2,
+                .strong = .{ .lang = .hebrew, .n = 9007 },
+                .code = try Bible.Morpheme.Code.parse("HTr"),
+            },
+            Morpheme{
+                .source = SourceSet{ .leningrad = true },
+                .tags = .{ .type = .root },
+                .text = 3,
+                .strong = .{ .lang = .hebrew, .n = 2449 },
+                .code = try Bible.Morpheme.Code.parse("HVqp1cs"),
+            },
+        }
+    );
+}
+
+// test "variant" {
+//     try testParse(
+//         \\Ecc.4.8#15=Q(K)	עֵינ֖/וֹ	ei.na/v	eye/ his	{H5869A}/H9023	HNcfsc/Sp3ms	K= ei.na/v (עֵינָי/ו) "eyes/ his" (H5869A/H9023=HNcbdc/Sp3ms)	L= עֵינ֖י/וֹ ¦ ;	H5869A			{H5869A=עַ֫יִן=: eye»eye:1_eye}/H9023=Ps3m=his
+//         ,
+//         &[_]Morpheme{
+//             Morpheme{
+//                 .source = SourceSet{ .qere = true },
+//                 .tags = .{ .variant = .start, .type = .root },
+//                 .text = 1,
+//                 .strong = .{ .lang = .hebrew, .n = 5869, .sense = 'a' },
+//                 .code = try Bible.Morpheme.Code.parse("HNcfsc"),
+//             },
+//             Morpheme{
+//                 .source = SourceSet{ .qere = true },
+//                 .tags = .{ .type = .suffix },
+//                 .text = 2,
+//                 .strong = .{ .lang = .hebrew, .n = 5869, .sense = 'a' },
+//                 .code = try Bible.Morpheme.Code.parse("HNcfsc"),
+//             },
+//         }
+//     );
+// }

@@ -1,10 +1,11 @@
 import { program } from 'commander';
+import { readFileSync } from 'node:fs';
+import chalk from 'chalk';
 // @ts-ignore
 import { type Ast, canonicalize } from './ast.ts';
 // @ts-ignore
 import * as usfm from './usfm/index.ts';
-import { readFileSync } from 'node:fs';
-import chalk from 'chalk';
+// @ts-ignore
 import { html } from './render/html.ts';
 
 const theme = {

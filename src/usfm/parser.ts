@@ -164,15 +164,16 @@ export class Parser {
 		if (!tag || !Tag.isParagraph(tag)) return;
 
 		const next = this.tokenizer.peek();
-		const text = next.tag =='text' ? this.tokenizer.view(this.tokenizer.next()) : '';
 
 		if (tag.tag == 'b') this.ast.push({ break: 'line' });
 		else if (['pm', 'pmo', 'pmr', 'pmc'].includes(tag.tag)) this.ast.push({ break: 'block' });
-		else if (tag.tag == 's') {
-			if (!text) return; // ignore
-			if (tag.n && (tag.n < 0 || tag.n > 4)) throw this.appendErr(token, 'Invalid heading level');
-			this.ast.push({ text, tag: `h${tag.n ?? 1}` as 'h1' | 'h2' | 'h3' | 'h4' });
-			return true
+		else if (Tag.isHeading(tag)) {
+			const text = next.tag == 'text' ? this.tokenizer.view(this.tokenizer.next()) : '';
+			if (next.tag != 'text') return; // ignore
+			if (tag.tag == 's') {
+				if (tag.n && (tag.n < 0 || tag.n > 4)) throw this.appendErr(token, 'Invalid heading level');
+				this.ast.push({ text, tag: `h${tag.n ?? 1}` as 'h1' | 'h2' | 'h3' | 'h4' });
+			}
 		} else {
 			this.ast.push({ break: 'paragraph' });
 		}

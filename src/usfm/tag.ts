@@ -10,158 +10,175 @@ export function init(s: string): Tag {
 	return res;
 }
 
+const paragraphs = new Set([
+	// identification
+	'id',
+	'usfm',
+	'ide',
+	'sts',
+	'rem',
+	'h',
+	'toc',
+	'toca',
+	// introductions
+	'imt',
+	'is',
+	'ip',
+	'ipi',
+	'im',
+	'imi',
+	'ipq',
+	'imq',
+	'ipr',
+	'iq',
+	'ib',
+	'ili',
+	'iot',
+	'io',
+	'iex',
+	'imte',
+	'ie',
+	// titles | headings, and labels
+	'mt',
+	'mte',
+	'ms',
+	'mr',
+	's',
+	'sr',
+	'r',
+	'd',
+	'sp',
+	'sd',
+	// chapters and verses
+	'c',
+	'cl',
+	'cp',
+	'cd',
+	// parapgraphs
+	'p',
+	'm',
+	'po',
+	'pr',
+	'cls',
+	'pmo',
+	'pm',
+	'pmc',
+	'pmr',
+	'pi',
+	'mi',
+	'nb',
+	'pc',
+	'ph',
+	'b',
+	// poetry
+	'q',
+	'qr',
+	'qc',
+	'qa',
+	'qm',
+	'qd',
+	// lists
+	'lh',
+	'li',
+	'lf',
+	'lim',
+	// tables
+	'tr',
+	// cross references
+	'x',
+	// spacing and breaks
+	'pb',
+	// special features
+	'fig',
+]);
+
+const inlines = new Set([
+	// introductions
+	'ior',
+	'iqt',
+	// chapters and verses
+	'ca',
+	'va',
+	'vp',
+	// poetry
+	'qs',
+	'qac',
+	// lists
+	'litl',
+	'lik',
+	'liv',
+	// footnotes
+	'f',
+	'fe',
+	'fv',
+	'fdc',
+	'fm',
+	// cross references
+	'x',
+	'xop',
+	'xot',
+	'xnt',
+	'xdc',
+	'rq',
+	// words and characters
+	'add',
+	'bk',
+	'dc',
+	'k',
+	'nd',
+	'ord',
+	'pn',
+	'png',
+	'addpn',
+	'qt',
+	'sig',
+	'sls',
+	'tl',
+	'wj',
+	// character styling
+	'em',
+	'bd',
+	'it',
+	'bdit',
+	'no',
+	'sc',
+	'sup',
+	// special features
+	'fig',
+	'ndx',
+	'rb',
+	'pro',
+	'w',
+	'wg',
+	'wh',
+	'wa',
+	// linking
+	'jmp',
+	// extended study content
+	'ef',
+	'ex',
+	'cat',
+]);
+
+const headings = new Set([
+	'mt',
+	'mte',
+	'ms',
+	'mr',
+	's',
+	'sr',
+	'r',
+	'd',
+	'sp',
+	'sd',
+]);
+
 export function isParagraph(t: Tag) {
-	return [
-		// identification
-		'id',
-		'usfm',
-		'ide',
-		'sts',
-		'rem',
-		'h',
-		'toc',
-		'toca',
-		// introductions
-		'imt',
-		'is',
-		'ip',
-		'ipi',
-		'im',
-		'imi',
-		'ipq',
-		'imq',
-		'ipr',
-		'iq',
-		'ib',
-		'ili',
-		'iot',
-		'io',
-		'iex',
-		'imte',
-		'ie',
-		// titles | headings, and labels
-		'mt',
-		'mte',
-		'ms',
-		'mr',
-		's',
-		'sr',
-		'r',
-		'd',
-		'sp',
-		'sd',
-		// chapters and verses
-		'c',
-		'cl',
-		'cp',
-		'cd',
-		// parapgraphs
-		'p',
-		'm',
-		'po',
-		'pr',
-		'cls',
-		'pmo',
-		'pm',
-		'pmc',
-		'pmr',
-		'pi',
-		'mi',
-		'nb',
-		'pc',
-		'ph',
-		'b',
-		// poetry
-		'q',
-		'qr',
-		'qc',
-		'qa',
-		'qm',
-		'qd',
-		// lists
-		'lh',
-		'li',
-		'lf',
-		'lim',
-		// tables
-		'tr',
-		// cross references
-		'x',
-		// spacing and breaks
-		'pb',
-		// special features
-		'fig',
-	].includes(t.tag);
+	return paragraphs.has(t.tag);
 }
 
 export function isInline(t: Tag) {
-	return [
-		// introductions
-		'ior',
-		'iqt',
-		// chapters and verses
-		'ca',
-		'va',
-		'vp',
-		// poetry
-		'qs',
-		'qac',
-		// lists
-		'litl',
-		'lik',
-		'liv',
-		// footnotes
-		'f',
-		'fe',
-		'fv',
-		'fdc',
-		'fm',
-		// cross references
-		'x',
-		'xop',
-		'xot',
-		'xnt',
-		'xdc',
-		'rq',
-		// words and characters
-		'add',
-		'bk',
-		'dc',
-		'k',
-		'nd',
-		'ord',
-		'pn',
-		'png',
-		'addpn',
-		'qt',
-		'sig',
-		'sls',
-		'tl',
-		'wj',
-		// character styling
-		'em',
-		'bd',
-		'it',
-		'bdit',
-		'no',
-		'sc',
-		'sup',
-		// special features
-		'fig',
-		'ndx',
-		'rb',
-		'pro',
-		'w',
-		'wg',
-		'wh',
-		'wa',
-		// linking
-		'jmp',
-		// extended study content
-		'ef',
-		'ex',
-		'cat',
-	].includes(t.tag);
+	return inlines.has(t.tag);
 }
 
 export function isMilestoneStart(t: Tag) {
@@ -180,8 +197,8 @@ export function isCharacter(t: Tag) {
 	return !isMilestone(t) && !isParagraph(t);
 }
 
-export function isIdentification(t: Tag) {
-	return ['id', 'usfm', 'ide', 'sts', 'rem', 'h', 'toc', 'toca'].includes(t.tag);
+export function isHeading(t: Tag) {
+	return headings.has(t.tag);
 }
 
 export function isClose(t: Tag) {

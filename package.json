@@ -28,7 +28,7 @@
 	},
 	"homepage": "https://github.com/openbible-io/bconv#readme",
 	"devDependencies": {
-		"@openbible/core": "^0.0.12",
+		"@openbible/core": "^0.0.20",
 		"@types/node": "^22.7.5",
 		"typescript": "^5.6.3"
 	},

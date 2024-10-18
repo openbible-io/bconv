@@ -1,6 +1,5 @@
 {
 	"name": "@openbible/bconv",
-	"version": "0.0.1",
 	"description": "Library and CLI to convert common Bible formats to a standard AST.",
 	"type": "module",
 	"main": "dist/index.js",

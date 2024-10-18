@@ -1,0 +1,28 @@
+name: Publish
+on:
+  push:
+    branches:
+      - master
+permissions:
+  # tag
+  contents: write
+  # provenance
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          registry-url: 'https://registry.npmjs.org'
+          node-version: latest
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: bash bump-and-publish.sh
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

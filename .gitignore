@@ -1,5 +1,2 @@
-zig-out
-.zig-cache
+node_modules
 dist
-.gdb_history
-test

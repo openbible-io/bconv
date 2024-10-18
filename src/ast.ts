@@ -31,7 +31,7 @@ export type ChapterNode = { chapter: number };
 export type VerseNode = { verse: number | {
 	start: number,
 	/** Paraphrase translations may include verse ranges */
-	end?: number
+	end: number
 } };
 
 function canonicalizeText(node: TextNode) {

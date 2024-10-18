@@ -5,6 +5,7 @@ import { type Ast, canonicalize } from './ast.ts';
 import * as usfm from './usfm/index.ts';
 import { readFileSync } from 'node:fs';
 import chalk from 'chalk';
+import { html } from './render/html.ts';
 
 const theme = {
 	error: chalk.bold.red,
@@ -47,11 +48,11 @@ program
 	.option('-a, --ast', 'output ast instead of HTML')
 	.option('-n, --no-normalize', 'do NOT normalize strings, remove extraneous elements')
 	.action((fname, options) => {
-		let parsed: Ast;
+		let ast: Ast;
 		if (fname.endsWith('.usfm')) {
 			const file = readFileSync(fname, 'utf8');
 			const document = usfm.parse(file);
-			parsed = document.ast;
+			ast = document.ast;
 			for (let i = 0; i < document.errors.length; i++) {
 				const err = document.errors[i];
 				if (typeof err.kind == 'object') {
@@ -78,11 +79,12 @@ program
 		} else {
 			throw Error('unknown file type: ' + fname);
 		}
-		if (options.normalize) parsed = canonicalize(parsed);
+		if (options.normalize) ast = canonicalize(ast);
 		if (options.ast) {
-			for (let i = 0; i < parsed.length; i++) console.log(JSON.stringify(parsed[i]));
+			for (let i = 0; i < ast.length; i++) console.log(JSON.stringify(ast[i]));
 			return;
 		}
+		html(ast);
 	});
 
 program.parse();

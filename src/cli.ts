@@ -24,7 +24,7 @@ program
 		if (options.ast) {
 			for (let i = 0; i < ast.length; i++) console.log(JSON.stringify(ast[i]));
 		} else {
-			html(ast);
+			html(s => process.stdout.write(s), ast);
 		}
 	});
 

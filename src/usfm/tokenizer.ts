@@ -100,7 +100,7 @@ export class Tokenizer {
 				this.eatSpace();
 				return res;
 			} else if (next_c == '"') {
-				var last_backslash = false;
+				let last_backslash = false;
 				while (true) {
 					const c = this.readByte();
 					if (!c) break;

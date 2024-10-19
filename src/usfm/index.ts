@@ -1,7 +1,8 @@
-import { Token, Tokenizer } from './tokenizer.ts';
-import { Parser } from './parser.ts';
 import chalk from 'chalk';
 import * as process from 'node:process';
+import { type Token, Tokenizer } from './tokenizer.ts';
+import type { Ast } from '../ast.ts';
+import { type Document, Parser } from './parser.ts';
 
 export { Parser, type Token, Tokenizer };
 
@@ -40,12 +41,12 @@ function printToken(file: string, tok: Token) {
 	process.stderr.write('\n');
 }
 
-export function parse(usfm: string) {
+export function parse(usfm: string): Document {
 	const tokenizer = new Tokenizer(usfm);
 	return new Parser(tokenizer).document();
 }
 
-export function parseAndPrintErrors(usfm: string) {
+export function parseAndPrintErrors(usfm: string): Ast {
 	const document = parse(usfm);
 	const ast = document.ast;
 	for (let i = 0; i < document.errors.length; i++) {

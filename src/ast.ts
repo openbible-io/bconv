@@ -49,34 +49,36 @@ function isSimpleText(n?: Node) {
 
 // Modifies Ast in-place, returning a new one.
 export function canonicalize(ast: Ast): Ast {
+	const tmp = ast as (Node | undefined)[];
 	let inChapter = false;
-	for (let i = 0; i < ast.length; i++) {
+	for (let i = 0; i < tmp.length; i++) {
 		if ('chapter' in ast[i]) inChapter = true;
 		if (!inChapter && !('book' in ast[i])) {
-			(ast[i] as any) = undefined;
+			tmp[i] = undefined;
 			continue;
 		}
 
 		if ('text' in ast[i]) {
-			const t = ast[i] as TextNode;
+			const t = tmp[i] as TextNode;
 			// carry forward
-			if (isSimpleText(ast[i]) && isSimpleText(ast[i - 1])) {
-				const t2 = ast[i - 1] as TextNode;
+			if (isSimpleText(tmp[i]) && isSimpleText(tmp[i - 1])) {
+				const t2 = tmp[i - 1] as TextNode;
 				t.text = t2.text + t.text;
-				(ast[i - 1] as any) = undefined;
+				tmp[i - 1] = undefined;
 			}
 			canonicalizeText(t);
-			if (t.text.trim() == '') (ast[i] as any) = undefined;
+			if (t.text.trim() == '') tmp[i] = undefined;
 		} else if ('break' in ast[i]) {
-			if (ast[i - 1]) {
-				if ('tag' in ast[i - 1]) (ast[i] as any) = undefined;
-				if ('break' in ast[i - 1]) (ast[i - 1] as any) = undefined;
+			if (tmp[i - 1]) {
+				if ('tag' in ast[i - 1]) tmp[i] = undefined;
+				if ('break' in ast[i - 1]) tmp[i - 1] = undefined;
 			}
 		}
 	}
 
-	for (let i = ast.length - 1; i > 0; i--) {
-		if (ast[i] && 'break' in ast[i]) (ast[i] as any) = undefined;
+	for (let i = tmp.length - 1; i > 0; i--) {
+		const el = tmp[i];
+		if (el && 'break' in el) tmp[i] = undefined;
 		else break;
 	}
 

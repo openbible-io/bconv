@@ -1,5 +1,5 @@
-import { Token, Tokenizer } from './tokenizer.ts';
-import { Ast } from '../ast.ts';
+import type { Token, Tokenizer } from './tokenizer.ts';
+import type { Ast } from '../ast.ts';
 import * as Tag from './tag.ts';
 
 export type Document = { ast: Ast; errors: Error[] };
@@ -11,6 +11,7 @@ export type Error = {
 		| 'Expected verse or chapter number'
 		| 'Invalid heading level';
 };
+export type Parsed = true | 'eof' | undefined;
 
 const whitelist = {
 	markers: new Set([
@@ -56,13 +57,13 @@ export class Parser {
 		this.tokenizer = tokenizer;
 	}
 
-	appendErr(token: Token, kind: Error['kind']) {
+	appendErr(token: Token, kind: Error['kind']): globalThis.Error {
 		this.errors.push({ token, kind });
 		const msg = typeof kind == 'string' ? kind : Object.keys(kind)[0];
 		return Error(msg);
 	}
 
-	expect(tag: Token['tag'], why: Error['kind']) {
+	expect(tag: Token['tag'], why: Error['kind']): Token {
 		const token = this.tokenizer.peek();
 		if (token.tag == tag) {
 			this.tokenizer.next();
@@ -72,7 +73,7 @@ export class Parser {
 		throw this.appendErr(token, why);
 	}
 
-	maybeClose(open: Token) {
+	maybeClose(open: Token): Parsed {
 		const close = this.tokenizer.peek();
 		if (close.tag == 'tag_close') {
 			const openText = this.tokenizer.view(open);
@@ -84,7 +85,7 @@ export class Parser {
 		}
 	}
 
-	expectSelfClose(forToken: Token) {
+	expectSelfClose(forToken: Token): void {
 		const token = this.tokenizer.peek();
 		if (token.tag == 'tag_close') {
 			this.tokenizer.next();
@@ -93,7 +94,7 @@ export class Parser {
 		throw this.appendErr(token, { expected_self_close: forToken });
 	}
 
-	attributes() {
+	attributes(): void {
 		const token = this.tokenizer.peek();
 		if (token.tag != 'attribute_start') return;
 		this.tokenizer.next();
@@ -114,7 +115,7 @@ export class Parser {
 		}
 	}
 
-	text(token: Token) {
+	text(token: Token): Parsed {
 		if (token.tag != 'text') return;
 
 		const text = this.tokenizer.view(token);
@@ -122,7 +123,7 @@ export class Parser {
 		return true;
 	}
 
-	marker(token: Token, tag?: Tag.Tag) {
+	marker(token: Token, tag?: Tag.Tag): Parsed {
 		if (!tag || !whitelist.markers.has(tag.tag)) return;
 
 		const maybeText = this.tokenizer.peek();
@@ -149,7 +150,7 @@ export class Parser {
 		throw this.appendErr(token, 'Expected verse or chapter number');
 	}
 
-	milestone(token: Token, tag?: Tag.Tag) {
+	milestone(token: Token, tag?: Tag.Tag): Parsed {
 		if (!tag || !Tag.isMilestone(tag)) return;
 
 		this.attributes();
@@ -157,7 +158,7 @@ export class Parser {
 		return true;
 	}
 
-	paragraph(token: Token, tag?: Tag.Tag) {
+	paragraph(token: Token, tag?: Tag.Tag): Parsed {
 		if (!tag || !Tag.isParagraph(tag)) return;
 
 		const next = this.tokenizer.peek();
@@ -187,7 +188,7 @@ export class Parser {
 		return true;
 	}
 
-	character(token: Token, tag?: Tag.Tag) {
+	character(token: Token, tag?: Tag.Tag): Parsed {
 		if (!tag || !Tag.isCharacter(tag)) return;
 
 		const maybeText = this.tokenizer.peek();
@@ -201,7 +202,7 @@ export class Parser {
 	}
 
 	// \f ... \f*
-	inline(token: Token, tag?: Tag.Tag) {
+	inline(token: Token, tag?: Tag.Tag): Parsed {
 		if (!tag || !Tag.isInline(tag)) return;
 
 		const whitelisted = whitelist.inline.has(tag.tag);
@@ -217,7 +218,7 @@ export class Parser {
 		return true;
 	}
 
-	next() {
+	next(): Parsed {
 		const token = this.tokenizer.next();
 		if (token.tag == 'eof') return 'eof';
 
@@ -236,7 +237,10 @@ export class Parser {
 		while (true) {
 			try {
 				if (this.next() == 'eof') break;
-			} catch {}
+			} catch {
+				// Code had to bail out so can gracefully handle next state.
+				// Nothing to do since error was recorded into `this.errors`.
+			}
 		}
 		return { ast: this.ast, errors: this.errors };
 	}

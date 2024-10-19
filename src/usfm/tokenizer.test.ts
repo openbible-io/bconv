@@ -1,5 +1,5 @@
 import { expect } from 'jsr:@std/expect';
-import { Token, Tokenizer } from './tokenizer.ts';
+import { type Token, Tokenizer } from './tokenizer.ts';
 
 function collectTokens(s: string) {
 	const tokenizer = new Tokenizer(s);

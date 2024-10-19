@@ -9,5 +9,6 @@
 		"singleQuote": true
 	},
 	"name": "@openbible/bconv",
-	"exports": "./src/index.ts"
+	"exports": "./src/index.ts",
+	"version": "0.0.0"
 }

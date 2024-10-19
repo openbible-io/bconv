@@ -1,4 +1,4 @@
-import * as Ast from '../ast.ts';
+import type * as Ast from '../ast.ts';
 
 function startTag(
 	write: (b: string) => void,

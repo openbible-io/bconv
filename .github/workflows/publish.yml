@@ -20,4 +20,5 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno test --allow-read
+      - run: deno lint
       - uses: openbible-io/bump-and-publish@v0.0.3

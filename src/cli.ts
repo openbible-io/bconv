@@ -1,6 +1,6 @@
 import { stdout } from 'node:process';
 import { program } from 'commander';
-import { Ast, canonicalize } from './ast.ts';
+import { type Ast, canonicalize } from './ast.ts';
 import * as lib from './index.ts';
 
 program

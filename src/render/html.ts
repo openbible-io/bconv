@@ -27,6 +27,16 @@ export function html(ast: Ast.Ast) {
 			} else {
 				startTag('p', { class: b.break == 'paragraph' ? undefined : b.break });
 			}
+		} else if ('book' in ast[i]) {
+			const b = ast[i] as Ast.BookNode;
+			startTag('h1');
+			process.stdout.write(b.book);
+			endTag('h1');
+		} else if ('chapter' in ast[i]) {
+			const c = ast[i] as Ast.ChapterNode;
+			startTag('h2');
+			process.stdout.write(`Chapter ${c.chapter.toString()}`);
+			endTag('h2');
 		} else if ('verse' in ast[i]) {
 			const v = ast[i] as Ast.VerseNode;
 			startTag('sup');
@@ -35,6 +45,7 @@ export function html(ast: Ast.Ast) {
 			} else {
 				process.stdout.write(`${v.verse.start}-${v.verse.end}`);
 			}
+			process.stdout.write(' ');
 			endTag('sup');
 		}
 	}

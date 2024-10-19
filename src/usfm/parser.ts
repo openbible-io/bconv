@@ -172,7 +172,9 @@ export class Parser {
 			if (next.tag != 'text') return; // ignore
 			if (tag.tag == 's') {
 				if (tag.n && (tag.n < 0 || tag.n > 4)) throw this.appendErr(token, 'Invalid heading level');
-				this.ast.push({ text, tag: `h${tag.n ?? 1}` as 'h1' | 'h2' | 'h3' | 'h4' });
+				this.ast.push({ text, tag: `h${(tag.n ?? 1) + 2}` as 'h1' | 'h2' | 'h3' | 'h4' });
+			} else if (tag.tag == 'd') {
+				this.ast.push({ text });
 			}
 		} else {
 			this.ast.push({ break: 'paragraph' });

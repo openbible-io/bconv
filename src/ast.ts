@@ -40,8 +40,8 @@ function canonicalizeText(node: TextNode) {
 		: node.text.trim();
 }
 
-function isSimpleText(n: Node) {
-	const keys = Object.keys(n);
+function isSimpleText(n?: Node) {
+	const keys = Object.keys(n ?? {});
 	return keys.length == 1 && keys[0] == 'text';
 }
 
@@ -66,8 +66,9 @@ export function canonicalize(ast: Ast): Ast {
 			canonicalizeText(t);
 			if (t.text.trim() == '') (ast[i] as any) = undefined;
 		} else if ('break' in ast[i]) {
-			if (ast[i - 1] && 'break' in ast[i - 1]) {
-				(ast[i - 1] as any) = undefined;
+			if (ast[i - 1]) {
+				if ('tag' in ast[i - 1]) (ast[i] as any) = undefined;
+				if ('break' in ast[i - 1]) (ast[i - 1] as any) = undefined;
 			}
 		}
 	}

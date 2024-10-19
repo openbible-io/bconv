@@ -1,7 +1,14 @@
 export type Token = {
-	tag: 'tag_open' | 'tag_close' | 'text' | 'attribute_start' | 'id' | 'kv_sep' | 'eof',
-	start: number,
-	end: number,
+	tag:
+		| 'tag_open'
+		| 'tag_close'
+		| 'text'
+		| 'attribute_start'
+		| 'id'
+		| 'kv_sep'
+		| 'eof';
+	start: number;
+	end: number;
 };
 
 // TODO: refactor to regexes for code size
@@ -97,24 +104,24 @@ export class Tokenizer {
 				while (true) {
 					const c = this.readByte();
 					if (!c) break;
-						if (c == '"' && !last_backslash) {
-							res.start += 1;
-							res.end = this.pos - 1;
-							res.tag = 'id';
-							break;
-						}
-						last_backslash = c == '\\';
+					if (c == '"' && !last_backslash) {
+						res.start += 1;
+						res.end = this.pos - 1;
+						res.tag = 'id';
+						break;
+					}
+					last_backslash = c == '\\';
 				}
 				this.eatSpace();
 			} else {
-				this.readUntilDelimiters(Tokenizer.whitespace.concat("=", "\\"));
+				this.readUntilDelimiters(Tokenizer.whitespace.concat('=', '\\'));
 				res.end = this.pos;
 				res.tag = 'id';
 				this.eatSpace();
 			}
 		} else {
 			this.in_attribute = false;
-			this.readUntilDelimiters(["|", "\\"]);
+			this.readUntilDelimiters(['|', '\\']);
 			res.end = this.pos;
 			res.tag = 'text';
 		}

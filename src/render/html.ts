@@ -1,4 +1,3 @@
-// @ts-ignore
 import * as Ast from '../ast.ts';
 
 function startTag(
@@ -32,7 +31,9 @@ export function html(write: (b: string) => void, ast: Ast.Ast) {
 			if (b.break == 'line') {
 				startTag(write, 'br');
 			} else {
-				startTag(write, 'p', { class: b.break == 'paragraph' ? undefined : b.break });
+				startTag(write, 'p', {
+					class: b.break == 'paragraph' ? undefined : b.break,
+				});
 			}
 		} else if ('book' in ast[i]) {
 			const b = ast[i] as Ast.BookNode;

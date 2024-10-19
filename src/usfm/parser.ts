@@ -1,18 +1,15 @@
-// @ts-ignore
-import { Tokenizer, type Token } from './tokenizer.ts';
-// @ts-ignore
-import { type Ast } from '../ast.ts';
-// @ts-ignore
+import { Token, Tokenizer } from './tokenizer.ts';
+import { Ast } from '../ast.ts';
 import * as Tag from './tag.ts';
 
-export type Document = { ast: Ast, errors: Error[] };
+export type Document = { ast: Ast; errors: Error[] };
 export type Error = {
-	token: Token,
-	kind: { 'expected_self_close': Token } |
-		'Expected attribute value' |
-		'Expected verse or chapter number' |
-		'Invalid heading level'
-	,
+	token: Token;
+	kind:
+		| { 'expected_self_close': Token }
+		| 'Expected attribute value'
+		| 'Expected verse or chapter number'
+		| 'Invalid heading level';
 };
 
 const whitelist = {
@@ -91,7 +88,7 @@ export class Parser {
 		const token = this.tokenizer.peek();
 		if (token.tag == 'tag_close') {
 			this.tokenizer.next();
-			if (this.tokenizer.view(token) == "\\*") return;
+			if (this.tokenizer.view(token) == '\\*') return;
 		}
 		throw this.appendErr(token, { expected_self_close: forToken });
 	}
@@ -166,13 +163,21 @@ export class Parser {
 		const next = this.tokenizer.peek();
 
 		if (tag.tag == 'b') this.ast.push({ break: 'line' });
-		else if (['pm', 'pmo', 'pmr', 'pmc'].includes(tag.tag)) this.ast.push({ break: 'block' });
-		else if (Tag.isHeading(tag)) {
-			const text = next.tag == 'text' ? this.tokenizer.view(this.tokenizer.next()) : '';
+		else if (['pm', 'pmo', 'pmr', 'pmc'].includes(tag.tag)) {
+			this.ast.push({ break: 'block' });
+		} else if (Tag.isHeading(tag)) {
+			const text = next.tag == 'text'
+				? this.tokenizer.view(this.tokenizer.next())
+				: '';
 			if (next.tag != 'text') return; // ignore
 			if (tag.tag == 's') {
-				if (tag.n && (tag.n < 0 || tag.n > 4)) throw this.appendErr(token, 'Invalid heading level');
-				this.ast.push({ text, tag: `h${(tag.n ?? 1) + 2}` as 'h1' | 'h2' | 'h3' | 'h4' });
+				if (tag.n && (tag.n < 0 || tag.n > 4)) {
+					throw this.appendErr(token, 'Invalid heading level');
+				}
+				this.ast.push({
+					text,
+					tag: `h${(tag.n ?? 1) + 2}` as 'h1' | 'h2' | 'h3' | 'h4',
+				});
 			} else if (tag.tag == 'd') {
 				this.ast.push({ text });
 			}
@@ -201,7 +206,9 @@ export class Parser {
 
 		const whitelisted = whitelist.inline.has(tag.tag);
 		const saved = this.ast.length;
-		while (['tag_open', 'text'].includes(this.tokenizer.peek().tag)) this.next();
+		while (['tag_open', 'text'].includes(this.tokenizer.peek().tag)) {
+			this.next();
+		}
 		if (!whitelisted) this.ast.length = saved;
 
 		this.attributes();
@@ -227,7 +234,9 @@ export class Parser {
 
 	document(): Document {
 		while (true) {
-			try { if (this.next() == 'eof') break; } catch {}
+			try {
+				if (this.next() == 'eof') break;
+			} catch {}
 		}
 		return { ast: this.ast, errors: this.errors };
 	}

@@ -1,0 +1,13 @@
+{
+	"imports": {
+		"@std/expect": "jsr:@std/expect@^1.0.5",
+		"chalk": "npm:chalk@^5.3.0",
+		"commander": "npm:commander@^12.1.0"
+	},
+	"fmt": {
+		"useTabs": true,
+		"singleQuote": true
+	},
+	"name": "@openbible/bconv",
+	"exports": "./src/index.ts"
+}

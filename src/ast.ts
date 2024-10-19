@@ -3,7 +3,7 @@
 //! [Greek](https://duckduckgo.com/?q=ancient+greek+biblical+manuscripts&iar=images) manuscripts.
 //! - There is no nesting allowed.
 //! - `RefNode` has been added to accomodate versification.
-//! 
+//!
 //! This purposefully loses footnotes, x-refs, and other elements found in modern translations.
 //! Why?
 //! 1. These are uninspired words that the reader usually doesn't care about.
@@ -12,12 +12,12 @@
 export type Ast = Node[];
 export type Node = TextNode | BreakNode | RefNode;
 export type TextNode = {
-	text: string,
-	tag?: 'h1' | 'h2' | 'h3' | 'h4',
-	align?: 'left' | 'center' | 'right',
+	text: string;
+	tag?: 'h1' | 'h2' | 'h3' | 'h4';
+	align?: 'left' | 'center' | 'right';
 };
 export type BreakNode = {
-	break: 'paragraph' | 'block' | 'line',
+	break: 'paragraph' | 'block' | 'line';
 };
 
 export type RefNode = BookNode | ChapterNode | VerseNode;
@@ -28,11 +28,13 @@ export type RefNode = BookNode | ChapterNode | VerseNode;
 export type BookNode = { book: string };
 /** No children because chapters/verses cannot nest. */
 export type ChapterNode = { chapter: number };
-export type VerseNode = { verse: number | {
-	start: number,
-	/** Paraphrase translations may include verse ranges */
-	end: number
-} };
+export type VerseNode = {
+	verse: number | {
+		start: number;
+		/** Paraphrase translations may include verse ranges */
+		end: number;
+	};
+};
 
 function canonicalizeText(node: TextNode) {
 	node.text = isSimpleText(node)

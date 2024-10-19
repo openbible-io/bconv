@@ -1,5 +1,5 @@
 // Used to have a nice list, but no one follows the standard!
-export type Tag = { tag: string, n?: number };
+export type Tag = { tag: string; n?: number };
 
 export function init(s: string): Tag {
 	const match = s.match(/^\\([^0-9]*)([0-9]+)?(-e|-s|\*)?$/);
@@ -207,17 +207,17 @@ export function isClose(t: Tag) {
 
 export function validAttributes(t: Tag): string[] {
 	return {
-		w: ["lemma", "strong", "srcloc"],
-		rb: ["gloss"],
-		xt: ["link-href"],
-		fig: ["alt", "src", "size", "loc", "copy", "ref" ],
+		w: ['lemma', 'strong', 'srcloc'],
+		rb: ['gloss'],
+		xt: ['link-href'],
+		fig: ['alt', 'src', 'size', 'loc', 'copy', 'ref'],
 	}[t.tag] || [];
 }
 
 export function defaultAttribute(t: Tag) {
 	return {
-		w: "lemma",
-		rb: "gloss",
-		xt: "link-href",
+		w: 'lemma',
+		rb: 'gloss',
+		xt: 'link-href',
 	}[t.tag];
 }

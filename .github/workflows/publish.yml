@@ -16,13 +16,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: denoland/setup-deno@v2
         with:
-          registry-url: 'https://registry.npmjs.org'
-          node-version: latest
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
-      - run: bash node_modules/@openbible/core/bump-and-publish.sh
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          deno-version: v2.x
+      - run: deno install --frozen
+      - run: deno test
+      - uses: openbible-io/bump-and-publish@v0.0.3

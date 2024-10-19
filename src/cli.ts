@@ -1,19 +1,20 @@
+import { stdout } from 'node:process';
 import { program } from 'commander';
-import { readFileSync } from 'node:fs';
-// @ts-ignore
-import { type Ast, canonicalize } from './ast.ts';
-// @ts-ignore
+import { Ast, canonicalize } from './ast.ts';
 import * as lib from './index.ts';
 
 program
 	.description('render Bible file to HTML')
 	.argument('<string>', 'filename')
 	.option('-a, --ast', 'output ast instead of HTML')
-	.option('-n, --no-normalize', 'do NOT normalize strings, remove extraneous elements')
+	.option(
+		'-n, --no-normalize',
+		'do NOT normalize strings, remove extraneous elements',
+	)
 	.action((fname, options) => {
 		let ast: Ast;
 		if (fname.endsWith('.usfm')) {
-			const file = readFileSync(fname, 'utf8');
+			const file = Deno.readTextFileSync(fname);
 			ast = lib.usfm.parseAndPrintErrors(file);
 		} else {
 			throw Error('unknown file type: ' + fname);
@@ -22,7 +23,7 @@ program
 		if (options.ast) {
 			for (let i = 0; i < ast.length; i++) console.log(JSON.stringify(ast[i]));
 		} else {
-			lib.render.html((s: string) => process.stdout.write(s), ast);
+			lib.render.html((s: string) => stdout.write(s), ast);
 		}
 	});
 

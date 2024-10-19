@@ -1,10 +1,9 @@
-// @ts-ignore
-import { Tokenizer, type Token } from './tokenizer.ts';
-// @ts-ignore
+import { Token, Tokenizer } from './tokenizer.ts';
 import { Parser } from './parser.ts';
 import chalk from 'chalk';
+import * as process from 'node:process';
 
-export { Tokenizer, Parser, type Token };
+export { Parser, type Token, Tokenizer };
 
 const theme = {
 	error: chalk.bold.red,
@@ -22,7 +21,7 @@ function lineNo(file: string, tok: Token) {
 			pos = i + 1;
 		}
 	}
-	return { line, pos } ;
+	return { line, pos };
 }
 
 function printToken(file: string, tok: Token) {
@@ -40,7 +39,6 @@ function printToken(file: string, tok: Token) {
 	if (tokEnd == tok.end) process.stderr.write(file.substring(tok.end, lineEnd));
 	process.stderr.write('\n');
 }
-
 
 export function parse(usfm: string) {
 	const tokenizer = new Tokenizer(usfm);

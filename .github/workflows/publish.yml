@@ -19,6 +19,5 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno install --frozen
       - run: deno test
       - uses: openbible-io/bump-and-publish@v0.0.3

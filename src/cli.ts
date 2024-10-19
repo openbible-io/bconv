@@ -3,9 +3,7 @@ import { readFileSync } from 'node:fs';
 // @ts-ignore
 import { type Ast, canonicalize } from './ast.ts';
 // @ts-ignore
-import * as usfm from './usfm/index.ts';
-// @ts-ignore
-import { html } from './render/html.ts';
+import * as lib from './index.ts';
 
 program
 	.description('render Bible file to HTML')
@@ -16,7 +14,7 @@ program
 		let ast: Ast;
 		if (fname.endsWith('.usfm')) {
 			const file = readFileSync(fname, 'utf8');
-			ast = usfm.parseAndPrintErrors(file);
+			ast = lib.usfm.parseAndPrintErrors(file);
 		} else {
 			throw Error('unknown file type: ' + fname);
 		}
@@ -24,7 +22,7 @@ program
 		if (options.ast) {
 			for (let i = 0; i < ast.length; i++) console.log(JSON.stringify(ast[i]));
 		} else {
-			html(s => process.stdout.write(s), ast);
+			lib.render.html((s: string) => process.stdout.write(s), ast);
 		}
 	});
 

@@ -1,2 +1,0 @@
-- [ ] tokenize newlines
-	- [ ] cache lineno in parser for errors

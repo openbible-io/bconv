@@ -1,7 +1,7 @@
 # bconv
 
 [![GitHub license](https://img.shields.io/github/license/openbible-io/bconv?style=for-the-badge)](./LICENSE.md)
-[![npm version](https://img.shields.io/npm/v/@openbible/bconv.svg?style=for-the-badge)](https://www.npmjs.com/package/@openbible/bconv)
+[![jsr version](https://img.shields.io/jsr/v/@openbible/bconv.svg?style=for-the-badge)](https://jsr.io/@openbible/bconv)
 
 Convert common Bible formats to a standard Ast. Available as a library or CLI.
 

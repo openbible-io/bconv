@@ -13,7 +13,7 @@ export type Ast = Node[];
 export type Node = TextNode | BreakNode | RefNode;
 export type TextNode = {
 	text: string;
-	tag?: 'h1' | 'h2' | 'h3' | 'h4';
+	tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'h7' | 'h8';
 	align?: 'left' | 'center' | 'right';
 };
 export type BreakNode = {

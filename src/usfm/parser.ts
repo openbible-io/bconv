@@ -1,5 +1,5 @@
 import type { Token, Tokenizer } from './tokenizer.ts';
-import type { Ast } from '../ast.ts';
+import type { Ast, TextNode } from '../ast.ts';
 import * as Tag from './tag.ts';
 
 export type Document = { ast: Ast; errors: Error[] };
@@ -185,7 +185,7 @@ export class Parser {
 				const offset = 2; // book name + chapter number
 				this.ast.push({
 					text,
-					tag: `h${(tag.n ?? 1) + offset}` as 'h1' | 'h2' | 'h3' | 'h4',
+					tag: `h${(tag.n ?? 1) + offset}` as TextNode['tag'],
 				});
 			} else if (tag.tag == 'd') {
 				this.ast.push({ text });

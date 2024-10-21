@@ -18,6 +18,7 @@ const whitelist = {
 		'c',
 		'v',
 		'id',
+		'ms',
 	]),
 	inline: new Set([
 		'w', // word
@@ -52,6 +53,7 @@ export class Parser {
 	tokenizer: Tokenizer;
 	ast: Ast = [];
 	errors: Error[] = [];
+	section: number = 1;
 
 	constructor(tokenizer: Tokenizer) {
 		this.tokenizer = tokenizer;
@@ -133,6 +135,11 @@ export class Parser {
 				this.tokenizer.next();
 				const match = text.match(/^\w+/);
 				if (match) this.ast.push({ book: match[0] });
+				this.section = 1;
+				return true;
+			} else if (tag.tag == 'ms') {
+				this.tokenizer.next();
+				this.ast.push({ section: this.section++ });
 				return true;
 			}
 			const match = text.match(/^[ \t]*(\d+\s*)/);
@@ -177,10 +184,12 @@ export class Parser {
 				}
 				this.ast.push({
 					text,
-					tag: `h${(tag.n ?? 1) + 2}` as 'h1' | 'h2' | 'h3' | 'h4',
+					tag: `h${(tag.n ?? 1) + 1}` as 'h1' | 'h2' | 'h3' | 'h4',
 				});
 			} else if (tag.tag == 'd') {
 				this.ast.push({ text });
+			} else if (tag.tag == 'toc' && tag.n == 1) {
+				this.ast.push({ text, tag: 'h1' });
 			}
 		} else {
 			this.ast.push({ break: 'paragraph' });

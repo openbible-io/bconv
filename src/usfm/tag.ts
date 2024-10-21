@@ -161,8 +161,10 @@ const inlines = new Set([
 ]);
 
 const headings = new Set([
+	'h',
 	'mt',
 	'mte',
+	'toc',
 	'ms',
 	'mr',
 	's',

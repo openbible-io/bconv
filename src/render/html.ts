@@ -1,8 +1,8 @@
 import type * as Ast from '../ast.ts';
 
 function startTag(
-	write: (b: string) => void,
 	tag: string,
+	write: (b: string) => void,
 	attributes?: { [key: string]: string | undefined },
 ) {
 	write(`<${tag}`);
@@ -13,48 +13,43 @@ function startTag(
 }
 
 function endTag(
-	write: (b: string) => void,
 	tag: string,
+	write: (b: string) => void,
 ) {
 	write(`</${tag}>`);
 }
 
-export function html(write: (b: string) => void, ast: Ast.Ast) {
+export function html(ast: Ast.Ast, write: (b: string) => void) {
 	for (let i = 0; i < ast.length; i++) {
 		if ('text' in ast[i]) {
 			const t = ast[i] as Ast.TextNode;
-			if (t.tag) startTag(write, t.tag, { align: t.align });
+			if (t.tag) startTag(t.tag, write, { align: t.align });
 			write(t.text);
-			if (t.tag) endTag(write, t.tag);
+			if (t.tag) endTag(t.tag, write);
 		} else if ('break' in ast[i]) {
 			const b = ast[i] as Ast.BreakNode;
 			if (b.break == 'line') {
-				startTag(write, 'br');
+				startTag('br', write);
 			} else {
-				startTag(write, 'p', {
+				startTag('p', write, {
 					class: b.break == 'paragraph' ? undefined : b.break,
 				});
 			}
-		} else if ('book' in ast[i]) {
-			const b = ast[i] as Ast.BookNode;
-			startTag(write, 'h1');
-			write(b.book);
-			endTag(write, 'h1');
 		} else if ('chapter' in ast[i]) {
 			const c = ast[i] as Ast.ChapterNode;
-			startTag(write, 'h2');
+			startTag('h2', write);
 			write(`Chapter ${c.chapter.toString()}`);
-			endTag(write, 'h2');
+			endTag('h2', write);
 		} else if ('verse' in ast[i]) {
 			const v = ast[i] as Ast.VerseNode;
-			startTag(write, 'sup');
+			startTag('sup', write);
 			if (typeof v.verse == 'number') {
 				write(v.verse.toString());
 			} else {
 				write(`${v.verse.start}-${v.verse.end}`);
 			}
 			write(' ');
-			endTag(write, 'sup');
+			endTag('sup', write);
 		}
 	}
 }

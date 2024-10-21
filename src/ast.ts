@@ -20,12 +20,11 @@ export type BreakNode = {
 	break: 'paragraph' | 'block' | 'line';
 };
 
-export type RefNode = BookNode | ChapterNode | VerseNode;
-/**
- * Psalms are divided into 5 books.
- * Manuscripts may lack page breaks between books.
- */
+export type RefNode = BookNode | SectionNode | ChapterNode | VerseNode;
+/** Manuscripts may lack page breaks between books. */
 export type BookNode = { book: string };
+/** Psalms are divided into 5 books. */
+export type SectionNode = { section: number };
 /** No children because chapters/verses cannot nest. */
 export type ChapterNode = { chapter: number };
 export type VerseNode = {
@@ -50,10 +49,10 @@ function isSimpleText(n?: Node) {
 // Modifies Ast in-place, returning a new one.
 export function canonicalize(ast: Ast): Ast {
 	const tmp = ast as (Node | undefined)[];
-	let inChapter = false;
+	let inBook = false;
 	for (let i = 0; i < tmp.length; i++) {
-		if ('chapter' in ast[i]) inChapter = true;
-		if (!inChapter && !('book' in ast[i])) {
+		if ('book' in ast[i]) inBook = true;
+		if (!inBook && !('book' in ast[i])) {
 			tmp[i] = undefined;
 			continue;
 		}

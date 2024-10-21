@@ -182,9 +182,10 @@ export class Parser {
 				if (tag.n && (tag.n < 0 || tag.n > 4)) {
 					throw this.appendErr(token, 'Invalid heading level');
 				}
+				const offset = 2; // book name + chapter number
 				this.ast.push({
 					text,
-					tag: `h${(tag.n ?? 1) + 1}` as 'h1' | 'h2' | 'h3' | 'h4',
+					tag: `h${(tag.n ?? 1) + offset}` as 'h1' | 'h2' | 'h3' | 'h4',
 				});
 			} else if (tag.tag == 'd') {
 				this.ast.push({ text });

@@ -48,7 +48,6 @@ export function html(ast: Ast.Ast, write: (b: string) => void) {
 			} else {
 				write(`${v.verse.start}-${v.verse.end}`);
 			}
-			write(' ');
 			endTag('sup', write);
 		}
 	}

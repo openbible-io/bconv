@@ -23,7 +23,8 @@ program
 		if (options.ast) {
 			for (let i = 0; i < ast.length; i++) console.log(JSON.stringify(ast[i]));
 		} else {
-			lib.render.html(ast, (s: string) => stdout.write(s));
+			const renderer = new lib.renderers.Html(s => stdout.write(s));
+			renderer.render(ast);
 		}
 	});
 

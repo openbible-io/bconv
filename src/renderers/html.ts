@@ -8,7 +8,10 @@ export class Html {
 		tag: string,
 		attributes?: { [key: string]: string | undefined },
 	) {
-		if (tag == 'p') this.inParagraph = true;
+		if (tag == 'p') {
+			if (this.inParagraph) this.endTag(tag);
+			this.inParagraph = true;
+		}
 		this.write(`<${tag}`);
 		Object.entries(attributes ?? {}).forEach(([k, v]) => {
 			if (v) this.write(` ${k}=\"${v}\"`);
@@ -33,7 +36,6 @@ export class Html {
 				if (b.break == 'line') {
 					this.startTag('br');
 				} else {
-					this.endTag('p');
 					this.startTag('p', {
 						class: b.break == 'paragraph' ? undefined : b.break,
 					});
@@ -54,6 +56,6 @@ export class Html {
 				this.endTag('sup');
 			}
 		}
-		this.endTag('p');
+		if (this.inParagraph) this.endTag('p');
 	}
 }

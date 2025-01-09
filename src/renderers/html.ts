@@ -8,10 +8,7 @@ export class Html {
 		tag: string,
 		attributes?: { [key: string]: string | undefined },
 	) {
-		if (tag == 'p') {
-			if (this.inParagraph) this.endTag(tag);
-			this.inParagraph = true;
-		}
+		if (tag == 'p') this.inParagraph = true;
 		this.write(`<${tag}`);
 		Object.entries(attributes ?? {}).forEach(([k, v]) => {
 			if (v) this.write(` ${k}=\"${v}\"`);
@@ -28,9 +25,11 @@ export class Html {
 		for (let i = 0; i < ast.length; i++) {
 			if ('text' in ast[i]) {
 				const t = ast[i] as Ast.TextNode;
-				if (t.tag) this.startTag(t.tag, { align: t.align });
-				this.write(t.text);
-				if (t.tag) this.endTag(t.tag);
+				if (t.text) {
+					if (t.tag) this.startTag(t.tag, { align: t.align });
+					this.write(t.text);
+					if (t.tag) this.endTag(t.tag);
+				}
 			} else if ('break' in ast[i]) {
 				const b = ast[i] as Ast.BreakNode;
 				if (b.break == 'line') {

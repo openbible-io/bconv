@@ -14,7 +14,7 @@ function expectElements(
 
 Deno.test('whitespace', () => {
 	expectElements('\\p  \n  \nasdf\n\n\n', [
-		{ break: 'paragraph' },
+		{ paragraph: '' },
 		{ text: '\n  \nasdf\n\n\n' },
 	]);
 });
@@ -60,10 +60,10 @@ Deno.test('paragraphs', () => {
 `;
 	expectElements(s, [
 		{ chapter: 1 },
-		{ break: 'paragraph' },
+		{ paragraph: '' },
 		{ verse: 1 },
 		{ text: 'verse1\n' },
-		{ break: 'paragraph' },
+		{ paragraph: '' },
 		{ verse: 2 },
 		{ text: 'verse2\n' },
 	]);

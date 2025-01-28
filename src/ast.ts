@@ -1,85 +1,60 @@
-//! - The AST is modeled after the text formatting of the original
-//! [Hebrew](https://izbicki.me/blog/ancient-hebrew-torah-scrolls.html) and
-//! [Greek](https://duckduckgo.com/?q=ancient+greek+biblical+manuscripts&iar=images) manuscripts.
-//! - There is no nesting allowed.
-//! - `RefNode` has been added to accomodate versification.
-//!
-//! This purposefully loses footnotes, x-refs, and other elements found in modern translations.
-//! Why?
-//! 1. These are uninspired words that the reader usually doesn't care about.
-//! 2. The format requires a complex nested structure.
-
+// Small intersection of USFM and HTML.
 export type Ast = Node[];
-export type Node = TextNode | BreakNode | RefNode;
-export type TextNode = {
-	text: string;
-	tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'h7' | 'h8';
-	align?: 'left' | 'center' | 'right';
-};
-export type BreakNode = {
-	break: 'paragraph' | 'block' | 'line';
-};
+export type Node = RefNode | HeadingNode | TextNode | ParagraphNode | BreakNode;
 
-export type RefNode = BookNode | SectionNode | ChapterNode | VerseNode;
-/** Manuscripts may lack page breaks between books. */
+export type RefNode = BookNode | BookSectionNode | ChapterNode | VerseNode;
 export type BookNode = { book: string };
 /** Psalms are divided into 5 books. */
-export type SectionNode = { section: number };
-/** No children because chapters/verses cannot nest. */
+export type BookSectionNode = { bookSection: string };
 export type ChapterNode = { chapter: number };
-export type VerseNode = {
-	verse: number | {
-		start: number;
-		/** Paraphrase translations may include verse ranges */
-		end: number;
-	};
+export type VerseNode = { verse: number };
+
+export type TextAttributes = { [key: string]: string };
+export type TextNode = {
+	text: string;
+	/** Language, parsing, lemma, transliteration, mapping, footnotes, etc. */
+	attributes?: TextAttributes;
+};
+export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type HeadingNode = {
+	level: HeadingLevel;
+	text: string;
+};
+export type ParagraphNode = {
+	paragraph: '';
+	class?: string;
+};
+export type BreakNode = {
+	break: '';
 };
 
-function canonicalizeText(node: TextNode) {
-	node.text = isSimpleText(node)
-		? node.text.replace(/\s+/g, ' ')
-		: node.text.trim();
-}
+export abstract class Visitor {
+	book?(book: string): void;
+	bookSection?(section: string): void;
+	chapter?(n: number): void;
+	verse?(n: number): void;
+	text?(text: string, attributes?: TextAttributes): void;
+	heading?(level: HeadingLevel, text: string): void;
+	paragraph?(class_?: string): void;
+	break?(class_?: string): void;
 
-function isSimpleText(n?: Node) {
-	const keys = Object.keys(n ?? {});
-	return keys.length == 1 && keys[0] == 'text';
-}
-
-// Modifies Ast in-place, returning a new one.
-export function canonicalize(ast: Ast): Ast {
-	const tmp = ast as (Node | undefined)[];
-	let inBook = false;
-	for (let i = 0; i < tmp.length; i++) {
-		if ('book' in ast[i]) inBook = true;
-		if (!inBook && !('book' in ast[i])) {
-			tmp[i] = undefined;
-			continue;
-		}
-
-		if ('text' in ast[i]) {
-			const t = tmp[i] as TextNode;
-			// carry forward
-			if (isSimpleText(tmp[i]) && isSimpleText(tmp[i - 1])) {
-				const t2 = tmp[i - 1] as TextNode;
-				t.text = t2.text + t.text;
-				tmp[i - 1] = undefined;
-			}
-			canonicalizeText(t);
-			if (t.text.trim() == '') tmp[i] = undefined;
-		} else if ('break' in ast[i]) {
-			if (tmp[i - 1]) {
-				if ('tag' in ast[i - 1]) tmp[i] = undefined;
-				if ('break' in ast[i - 1]) tmp[i - 1] = undefined;
-			}
-		}
+	visitNode(n: Node) {
+		if (this.book && 'book' in n) this.book(n.book);
+		else if (this.bookSection && 'bookSection' in n) {
+			this.bookSection(n.bookSection);
+		} else if (this.chapter && 'chapter' in n) this.chapter(n.chapter);
+		else if (this.verse && 'verse' in n) this.verse(n.verse);
+		else if (this.heading && 'level' in n) this.heading(n.level, n.text);
+		else if (this.text && 'text' in n) {
+			this.text(
+				n.text,
+				(n as TextNode /* heading check is above */).attributes,
+			);
+		} else if (this.paragraph && 'paragraph' in n) this.paragraph(n.class);
+		else if (this.break && 'break' in n) this.break(n.break);
 	}
 
-	for (let i = tmp.length - 1; i > 0; i--) {
-		const el = tmp[i];
-		if (el && 'break' in el) tmp[i] = undefined;
-		else break;
+	visit(ast: Ast) {
+		for (let i = 0; i < ast.length; i++) this.visitNode(ast[i]);
 	}
-
-	return ast.filter(Boolean) as Node[];
 }

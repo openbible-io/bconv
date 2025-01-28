@@ -1,5 +1,5 @@
 import type { Token, Tokenizer } from './tokenizer.ts';
-import type { Ast, TextNode } from '../ast.ts';
+import type { Ast, HeadingLevel } from '../ast.ts';
 import * as Tag from './tag.ts';
 
 export type Document = { ast: Ast; errors: Error[] };
@@ -139,7 +139,7 @@ export class Parser {
 				return true;
 			} else if (tag.tag == 'ms') {
 				this.tokenizer.next();
-				this.ast.push({ section: this.section++ });
+				this.ast.push({ bookSection: (this.section++).toString() });
 				return true;
 			}
 			const match = text.match(/^[ \t]*(\d+\s*)/);
@@ -170,9 +170,9 @@ export class Parser {
 
 		const next = this.tokenizer.peek();
 
-		if (tag.tag == 'b') this.ast.push({ break: 'line' });
+		if (tag.tag == 'b') this.ast.push({ break: '' });
 		else if (['pm', 'pmo', 'pmr', 'pmc'].includes(tag.tag)) {
-			this.ast.push({ break: 'block' });
+			this.ast.push({ paragraph: '', class: 'block' });
 		} else if (Tag.isHeading(tag)) {
 			const text = next.tag == 'text'
 				? this.tokenizer.view(this.tokenizer.next())
@@ -184,16 +184,16 @@ export class Parser {
 				}
 				const offset = 2; // book name + chapter number
 				this.ast.push({
+					level: ((tag.n ?? 1) + offset) as HeadingLevel,
 					text,
-					tag: `h${(tag.n ?? 1) + offset}` as TextNode['tag'],
 				});
 			} else if (tag.tag == 'd') {
 				this.ast.push({ text });
 			} else if (tag.tag == 'toc' && tag.n == 1) {
-				this.ast.push({ text, tag: 'h1' });
+				this.ast.push({ level: 1, text });
 			}
 		} else {
-			this.ast.push({ break: 'paragraph' });
+			this.ast.push({ paragraph: '' });
 		}
 		return true;
 	}

@@ -54,8 +54,14 @@ export class Html extends Ast.Visitor {
 		this.endTag("sup");
 	}
 
-	override text(text: string, _attributes?: Ast.TextAttributes) {
-		this.write(text);
+	override text(text: string, attributes: Ast.TextAttributes) {
+		if (attributes) {
+			this.startTag("span", true, attributes);
+			this.write(text);
+			this.endTag("span");
+		} else {
+			this.write(text);
+		}
 	}
 
 	override heading(level: Ast.HeadingLevel, text: string) {

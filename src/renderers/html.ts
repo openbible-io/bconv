@@ -74,18 +74,20 @@ export class Html extends Ast.Visitor {
 	}
 
 	isInline(node: Ast.Node): boolean {
-		return "verse" in node || ("text" in node && !("level" in node));
+		return typeof node == "string" || "verse" in node ||
+			("text" in node && !("level" in node));
 	}
 
 	override visit(ast: Ast.Ast) {
 		// We can clean up a bit as we visit.
 		for (let i = 0; i < ast.length; i++) {
-			const n = ast[i];
+			let n = ast[i];
 			const next = ast[i + 1];
 			// Skip breaks before non-inline elements.
-			if ("break" in n && !this.isInline(next)) continue;
+			if ("break" in (n as object) && !this.isInline(next)) continue;
 			// Replace trailing space with single whitespace.
-			if ("text" in n) n.text = n.text.replace(/\s+$/, " ");
+			if (typeof n == "string") n = n.replace(/\s+$/, " ");
+			else if ("text" in n) n.text = n.text.replace(/\s+$/, " ");
 
 			this.visitNode(n);
 		}

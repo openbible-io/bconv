@@ -1,4 +1,4 @@
-import * as Ast from '../ast.ts';
+import * as Ast from "../ast.ts";
 
 export class Html extends Ast.Visitor {
 	inParagraph = false;
@@ -16,7 +16,7 @@ export class Html extends Ast.Visitor {
 		attributes?: { [key: string]: string | undefined },
 	) {
 		if (this.inParagraph && !inline) {
-			this.endTag('p');
+			this.endTag("p");
 			this.inParagraph = false;
 		}
 		this.write(`<${tag}`);
@@ -31,27 +31,27 @@ export class Html extends Ast.Visitor {
 	}
 
 	override book(book: string) {
-		this.startTag('h1');
+		this.startTag("h1");
 		this.write(book);
-		this.endTag('h1');
+		this.endTag("h1");
 	}
 
 	override bookSection(section: string) {
-		this.startTag('h2');
+		this.startTag("h2");
 		this.write(section);
-		this.endTag('h2');
+		this.endTag("h2");
 	}
 
 	override chapter(n: number) {
-		this.startTag('h2');
+		this.startTag("h2");
 		this.write(this.chapterFn(n));
-		this.endTag('h2');
+		this.endTag("h2");
 	}
 
 	override verse(n: number) {
-		this.startTag('sup', true);
+		this.startTag("sup", true);
 		this.write(n.toString());
-		this.endTag('sup');
+		this.endTag("sup");
 	}
 
 	override text(text: string, _attributes?: Ast.TextAttributes) {
@@ -65,16 +65,16 @@ export class Html extends Ast.Visitor {
 	}
 
 	override paragraph(class_?: string) {
-		this.startTag('p', false, { class: class_ });
+		this.startTag("p", false, { class: class_ });
 		this.inParagraph = true;
 	}
 
 	override break(class_?: string) {
-		if (this.inParagraph) this.startTag('br', true, { class: class_ });
+		if (this.inParagraph) this.startTag("br", true, { class: class_ });
 	}
 
 	isInline(node: Ast.Node): boolean {
-		return 'verse' in node || ('text' in node && !('level' in node));
+		return "verse" in node || ("text" in node && !("level" in node));
 	}
 
 	override visit(ast: Ast.Ast) {
@@ -83,12 +83,12 @@ export class Html extends Ast.Visitor {
 			const n = ast[i];
 			const next = ast[i + 1];
 			// Skip breaks before non-inline elements.
-			if ('break' in n && !this.isInline(next)) continue;
+			if ("break" in n && !this.isInline(next)) continue;
 			// Replace trailing space with single whitespace.
-			if ('text' in n) n.text = n.text.replace(/\s+$/, ' ');
+			if ("text" in n) n.text = n.text.replace(/\s+$/, " ");
 
 			this.visitNode(n);
 		}
-		if (this.inParagraph) this.endTag('p');
+		if (this.inParagraph) this.endTag("p");
 	}
 }

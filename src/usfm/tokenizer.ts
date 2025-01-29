@@ -1,12 +1,12 @@
 export type Token = {
 	tag:
-		| 'tag_open'
-		| 'tag_close'
-		| 'text'
-		| 'attribute_start'
-		| 'id'
-		| 'kv_sep'
-		| 'eof';
+		| "tag_open"
+		| "tag_close"
+		| "text"
+		| "attribute_start"
+		| "id"
+		| "kv_sep"
+		| "eof";
 	start: number;
 	end: number;
 };
@@ -16,7 +16,7 @@ export class Tokenizer {
 	buffer: string;
 	pos = 0;
 	in_attribute = false;
-	static whitespace = [' ', '\t', '\r', '\n'];
+	static whitespace = [" ", "\t", "\r", "\n"];
 
 	constructor(buffer: string) {
 		this.buffer = buffer;
@@ -37,7 +37,7 @@ export class Tokenizer {
 			if (!byte) return len;
 			for (let i = 0; i < delimiters.length; i++) {
 				if (byte == delimiters[i]) {
-					if (byte == '*') {
+					if (byte == "*") {
 						// Consume * for ending tags
 						len += 1;
 					} else {
@@ -71,7 +71,7 @@ export class Tokenizer {
 		const res: Token = {
 			start: this.pos,
 			end: this.pos + 1,
-			tag: 'eof',
+			tag: "eof",
 		};
 
 		const next_c = this.readByte();
@@ -79,24 +79,24 @@ export class Tokenizer {
 			res.end = this.pos;
 			return res;
 		}
-		if (next_c == '\\') {
+		if (next_c == "\\") {
 			this.in_attribute = false;
-			this.readUntilDelimiters(Tokenizer.whitespace.concat('*', '\\', '|'));
-			if (this.buffer[this.pos - 1] != '*') {
+			this.readUntilDelimiters(Tokenizer.whitespace.concat("*", "\\", "|"));
+			if (this.buffer[this.pos - 1] != "*") {
 				res.end = this.pos;
-				res.tag = 'tag_open';
+				res.tag = "tag_open";
 				this.eatSpaceN(1);
 			} else { // End tag like `\w*` or '\*';
 				res.end = this.pos;
-				res.tag = 'tag_close';
+				res.tag = "tag_close";
 			}
-		} else if (next_c == '|') {
+		} else if (next_c == "|") {
 			this.in_attribute = true;
-			res.tag = 'attribute_start';
+			res.tag = "attribute_start";
 			this.eatSpace();
 		} else if (this.in_attribute) {
-			if (next_c == '=') {
-				res.tag = 'kv_sep';
+			if (next_c == "=") {
+				res.tag = "kv_sep";
 				this.eatSpace();
 				return res;
 			} else if (next_c == '"') {
@@ -107,23 +107,23 @@ export class Tokenizer {
 					if (c == '"' && !last_backslash) {
 						res.start += 1;
 						res.end = this.pos - 1;
-						res.tag = 'id';
+						res.tag = "id";
 						break;
 					}
-					last_backslash = c == '\\';
+					last_backslash = c == "\\";
 				}
 				this.eatSpace();
 			} else {
-				this.readUntilDelimiters(Tokenizer.whitespace.concat('=', '\\'));
+				this.readUntilDelimiters(Tokenizer.whitespace.concat("=", "\\"));
 				res.end = this.pos;
-				res.tag = 'id';
+				res.tag = "id";
 				this.eatSpace();
 			}
 		} else {
 			this.in_attribute = false;
-			this.readUntilDelimiters(['|', '\\']);
+			this.readUntilDelimiters(["|", "\\"]);
 			res.end = this.pos;
-			res.tag = 'text';
+			res.tag = "text";
 		}
 
 		return res;

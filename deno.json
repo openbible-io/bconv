@@ -5,8 +5,7 @@
 		"commander": "npm:commander@^12.1.0"
 	},
 	"fmt": {
-		"useTabs": true,
-		"singleQuote": true
+		"useTabs": true
 	},
 	"name": "@openbible/bconv",
 	"exports": "./src/index.ts",

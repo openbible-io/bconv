@@ -21,11 +21,11 @@ export type HeadingNode = {
 	text: string;
 };
 export type ParagraphNode = {
-	paragraph: '';
+	paragraph: "";
 	class?: string;
 };
 export type BreakNode = {
-	break: '';
+	break: "";
 };
 
 export abstract class Visitor {
@@ -39,19 +39,19 @@ export abstract class Visitor {
 	break?(class_?: string): void;
 
 	visitNode(n: Node) {
-		if (this.book && 'book' in n) this.book(n.book);
-		else if (this.bookSection && 'bookSection' in n) {
+		if (this.book && "book" in n) this.book(n.book);
+		else if (this.bookSection && "bookSection" in n) {
 			this.bookSection(n.bookSection);
-		} else if (this.chapter && 'chapter' in n) this.chapter(n.chapter);
-		else if (this.verse && 'verse' in n) this.verse(n.verse);
-		else if (this.heading && 'level' in n) this.heading(n.level, n.text);
-		else if (this.text && 'text' in n) {
+		} else if (this.chapter && "chapter" in n) this.chapter(n.chapter);
+		else if (this.verse && "verse" in n) this.verse(n.verse);
+		else if (this.heading && "level" in n) this.heading(n.level, n.text);
+		else if (this.text && "text" in n) {
 			this.text(
 				n.text,
 				(n as TextNode /* heading check is above */).attributes,
 			);
-		} else if (this.paragraph && 'paragraph' in n) this.paragraph(n.class);
-		else if (this.break && 'break' in n) this.break(n.break);
+		} else if (this.paragraph && "paragraph" in n) this.paragraph(n.class);
+		else if (this.break && "break" in n) this.break(n.break);
 	}
 
 	visit(ast: Ast) {

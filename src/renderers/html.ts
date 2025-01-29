@@ -83,10 +83,10 @@ export class Html extends Ast.Visitor {
 		for (let i = 0; i < ast.length; i++) {
 			let n = ast[i];
 			const next = ast[i + 1];
-			// Skip breaks before non-inline elements.
-			if ("break" in (n as object) && !this.isInline(next)) continue;
 			// Replace trailing space with single whitespace.
 			if (typeof n == "string") n = n.replace(/\s+$/, " ");
+			// Skip breaks before non-inline elements.
+			else if ("break" in n && !this.isInline(next)) continue;
 			else if ("text" in n) n.text = n.text.replace(/\s+$/, " ");
 
 			this.visitNode(n, i);

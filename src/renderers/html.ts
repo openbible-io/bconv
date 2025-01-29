@@ -5,7 +5,7 @@ export class Html extends Ast.Visitor {
 
 	constructor(
 		public write: (s: string) => void,
-		public chapterFn = (c: number): string => `Chapter ${c}`,
+		public chapterFn: (c: number) => string = (c) => `Chapter ${c}`,
 	) {
 		super();
 	}

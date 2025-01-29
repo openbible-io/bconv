@@ -58,7 +58,7 @@ export class Html extends Ast.Visitor {
 		this.write(text);
 	}
 
-	override heading?(level: Ast.HeadingLevel, text: string) {
+	override heading(level: Ast.HeadingLevel, text: string) {
 		this.startTag(`h${level}`);
 		this.write(text);
 		this.endTag(`h${level}`);

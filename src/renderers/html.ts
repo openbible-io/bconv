@@ -30,31 +30,31 @@ export class Html extends Ast.Visitor {
 		this.write(`</${tag}>`);
 	}
 
-	override book(book: string) {
+	override book(book: string, _i: number) {
 		this.startTag("h1");
 		this.write(book);
 		this.endTag("h1");
 	}
 
-	override bookSection(section: string) {
+	override bookSection(section: string, _i: number) {
 		this.startTag("h2");
 		this.write(section);
 		this.endTag("h2");
 	}
 
-	override chapter(n: number) {
+	override chapter(n: number, _i: number) {
 		this.startTag("h2");
 		this.write(this.chapterFn(n));
 		this.endTag("h2");
 	}
 
-	override verse(n: number) {
+	override verse(n: number, _i: number) {
 		this.startTag("sup", true);
 		this.write(n.toString());
 		this.endTag("sup");
 	}
 
-	override text(text: string, attributes: Ast.TextAttributes) {
+	override text(text: string, attributes: Ast.TextAttributes, _i: number) {
 		if (attributes) {
 			this.startTag("span", true, attributes);
 			this.write(text);
@@ -64,18 +64,18 @@ export class Html extends Ast.Visitor {
 		}
 	}
 
-	override heading(level: Ast.HeadingLevel, text: string) {
+	override heading(level: Ast.HeadingLevel, text: string, _i: number) {
 		this.startTag(`h${level}`);
 		this.write(text);
 		this.endTag(`h${level}`);
 	}
 
-	override paragraph(class_?: string) {
-		this.startTag("p", false, { class: class_ });
+	override paragraph(class_: string | undefined, _i: number) {
+		this.startTag("p", false, class_ ? { class: class_ } : {});
 		this.inParagraph = true;
 	}
 
-	override break(class_?: string) {
+	override break(class_: string, _i: number) {
 		if (this.inParagraph) this.startTag("br", true, { class: class_ });
 	}
 

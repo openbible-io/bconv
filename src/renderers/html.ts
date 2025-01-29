@@ -89,6 +89,9 @@ export class Html extends Ast.Visitor {
 
 			this.visitNode(n);
 		}
-		if (this.inParagraph) this.endTag("p");
+		if (this.inParagraph) {
+			this.endTag("p");
+			this.inParagraph = false;
+		}
 	}
 }

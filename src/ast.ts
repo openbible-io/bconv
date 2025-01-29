@@ -30,23 +30,23 @@ export type BreakNode = {
 };
 
 export abstract class Visitor {
-	book(_book: string, _i?: number): void {}
-	bookSection(_section: string, _i?: number): void {}
-	chapter(_n: number, _i?: number): void {}
-	verse(_n: number, _i?: number): void {}
-	text(_text: string, _attributes?: TextAttributes, _i?: number): void {}
-	heading(_level: HeadingLevel, _text: string, _i?: number): void {}
-	paragraph(_class?: string, _i?: number): void {}
-	break(_class?: string, _i?: number): void {}
+	book(_book: string, _i: number): void {}
+	bookSection(_section: string, _i: number): void {}
+	chapter(_n: number, _i: number): void {}
+	verse(_n: number, _i: number): void {}
+	text(_text: string, _attributes: TextAttributes, _i: number): void {}
+	heading(_level: HeadingLevel, _text: string, _i: number): void {}
+	paragraph(_class: string | undefined, _i: number): void {}
+	break(_class: string | undefined, _i: number): void {}
 
 	visitNode(n: Node, i: number) {
-		if (typeof n == "string") this.text(n, undefined, i);
+		if (typeof n == "string") this.text(n, {}, i);
 		else if ("book" in n) this.book(n.book, i);
 		else if ("bookSection" in n) this.bookSection(n.bookSection, i);
 		else if ("chapter" in n) this.chapter(n.chapter, i);
 		else if ("verse" in n) this.verse(n.verse, i);
 		else if ("level" in n) this.heading(n.level, n.text, i);
-		else if ("text" in n) this.text(n.text, n.attributes, i);
+		else if ("text" in n) this.text(n.text, n.attributes ?? {}, i);
 		else if ("paragraph" in n) this.paragraph(n.class, i);
 		else if ("break" in n) this.break(n.break, i);
 	}

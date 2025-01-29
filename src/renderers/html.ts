@@ -89,7 +89,7 @@ export class Html extends Ast.Visitor {
 			if (typeof n == "string") n = n.replace(/\s+$/, " ");
 			else if ("text" in n) n.text = n.text.replace(/\s+$/, " ");
 
-			this.visitNode(n, i);
+			this.visitNode(n);
 		}
 		if (this.inParagraph) {
 			this.endTag("p");

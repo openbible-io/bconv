@@ -9,7 +9,8 @@ export type BookSectionNode = { bookSection: string };
 export type ChapterNode = { chapter: number };
 export type VerseNode = { verse: number };
 
-export type TextAttributes = { [key: string]: string };
+// deno-lint-ignore no-explicit-any
+export type TextAttributes = { [key: string]: any };
 export type TextNode = string | {
 	text: string;
 	/** Language, parsing, lemma, transliteration, mapping, footnotes, etc. */

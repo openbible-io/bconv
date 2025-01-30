@@ -63,7 +63,9 @@ export class Html extends Ast.Visitor {
 	}
 
 	override text(text: string, attributes: Ast.TextAttributes, _i: number) {
-		if (attributes) {
+		if (!text) return;
+
+		if (Object.keys(attributes).length > 0) {
 			this.startTag("span", true, attributes);
 			this.write(text);
 			this.endTag("span");

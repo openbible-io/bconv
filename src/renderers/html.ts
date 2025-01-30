@@ -10,15 +10,23 @@ export class Html extends Ast.Visitor {
 		super();
 	}
 
+	// Allows overriding for interlinear view.
+	startParagraph(class_?: string) {
+		this.startTag("p", false, class_ ? { class: class_ } : {});
+		this.inParagraph = true;
+	}
+
+	endParagraph() {
+		this.endTag("p");
+		this.inParagraph = false;
+	}
+
 	startTag(
 		tag: string,
 		inline: boolean = false,
 		attributes?: { [key: string]: string | undefined },
 	) {
-		if (this.inParagraph && !inline) {
-			this.endTag("p");
-			this.inParagraph = false;
-		}
+		if (this.inParagraph && !inline) this.endParagraph();
 		this.write(`<${tag}`);
 		Object.entries(attributes ?? {}).forEach(([k, v]) => {
 			if (v) this.write(` ${k}=\"${v}\"`);
@@ -71,8 +79,7 @@ export class Html extends Ast.Visitor {
 	}
 
 	override paragraph(class_: string | undefined, _i: number) {
-		this.startTag("p", false, class_ ? { class: class_ } : {});
-		this.inParagraph = true;
+		this.startParagraph(class_);
 	}
 
 	override break(class_: string, _i: number) {
@@ -97,9 +104,6 @@ export class Html extends Ast.Visitor {
 
 			this.visitNode(n, i);
 		}
-		if (this.inParagraph) {
-			this.endTag("p");
-			this.inParagraph = false;
-		}
+		if (this.inParagraph) this.endParagraph();
 	}
 }

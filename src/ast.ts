@@ -9,8 +9,7 @@ export type BookSectionNode = { bookSection: string };
 export type ChapterNode = { chapter: number };
 export type VerseNode = { verse: number };
 
-// deno-lint-ignore no-explicit-any
-export type TextAttributes = { [key: string]: any };
+export type TextAttributes = { [key: string]: string };
 export type TextNode =
 	| string
 	| {
@@ -42,7 +41,7 @@ export abstract class Visitor {
 	break(_class: string | undefined, _i: number): void {}
 
 	visitNode(n: Node, i: number) {
-		if (typeof n == "string") this.text(n, {}, i);
+		if (typeof n === "string") this.text(n, {}, i);
 		else if ("book" in n) this.book(n.book, i);
 		else if ("bookSection" in n) this.bookSection(n.bookSection, i);
 		else if ("chapter" in n) this.chapter(n.chapter, i);

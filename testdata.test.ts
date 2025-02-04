@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { usfm } from "./src/index.ts";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { readdirSync, readFileSync } from "node:fs";
+import { usfm } from "./src/index.ts";
 
 test("usfm BSB", () => {
 	for (const dir of readdirSync("testdata")) {

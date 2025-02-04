@@ -4,11 +4,12 @@
 	"main": "./src/index.ts",
 	"type": "module",
 	"dependencies": {
-		"@types/bun": "^1.2.2",
 		"chalk": "^5.4.1",
 		"commander": "^13.1.0"
 	},
 	"devDependencies": {
-		"prettier": "^3.4.2"
+		"@types/bun": "^1.2.2",
+		"@biomejs/biome": "^1.9.4",
+		"typescript": "^5.7.3"
 	}
 }

@@ -1,9 +1,9 @@
-import type { Token, Tokenizer } from "./tokenizer.ts";
 import type { Ast, HeadingLevel } from "../ast.ts";
 import * as Tag from "./tag.ts";
+import type { Token, Tokenizer } from "./tokenizer.ts";
 
-export type Document = { ast: Ast; errors: Error[] };
-export type Error = {
+export type Document = { ast: Ast; errors: ParseError[] };
+export type ParseError = {
 	token: Token;
 	kind:
 		| { expected_self_close: Token }
@@ -47,22 +47,22 @@ const whitelist = {
 export class Parser {
 	tokenizer: Tokenizer;
 	ast: Ast = [];
-	errors: Error[] = [];
-	section: number = 1;
+	errors: ParseError[] = [];
+	section = 1;
 
 	constructor(tokenizer: Tokenizer) {
 		this.tokenizer = tokenizer;
 	}
 
-	appendErr(token: Token, kind: Error["kind"]): globalThis.Error {
+	appendErr(token: Token, kind: ParseError["kind"]): globalThis.Error {
 		this.errors.push({ token, kind });
-		const msg = typeof kind == "string" ? kind : Object.keys(kind)[0];
+		const msg = typeof kind === "string" ? kind : Object.keys(kind)[0];
 		return Error(msg);
 	}
 
-	expect(tag: Token["tag"], why: Error["kind"]): Token {
+	expect(tag: Token["tag"], why: ParseError["kind"]): Token {
 		const token = this.tokenizer.peek();
-		if (token.tag == tag) {
+		if (token.tag === tag) {
 			this.tokenizer.next();
 			return token;
 		}
@@ -72,10 +72,10 @@ export class Parser {
 
 	maybeClose(open: Token): Parsed {
 		const close = this.tokenizer.peek();
-		if (close.tag == "tag_close") {
+		if (close.tag === "tag_close") {
 			const openText = this.tokenizer.view(open);
 			const closeText = this.tokenizer.view(close);
-			if (openText == closeText.substring(0, closeText.length - 1)) {
+			if (openText === closeText.substring(0, closeText.length - 1)) {
 				this.tokenizer.next();
 				return true;
 			}
@@ -84,25 +84,25 @@ export class Parser {
 
 	expectSelfClose(forToken: Token): void {
 		const token = this.tokenizer.peek();
-		if (token.tag == "tag_close") {
+		if (token.tag === "tag_close") {
 			this.tokenizer.next();
-			if (this.tokenizer.view(token) == "\\*") return;
+			if (this.tokenizer.view(token) === "\\*") return;
 		}
 		throw this.appendErr(token, { expected_self_close: forToken });
 	}
 
 	attributes(): void {
 		const token = this.tokenizer.peek();
-		if (token.tag != "attribute_start") return;
+		if (token.tag !== "attribute_start") return;
 		this.tokenizer.next();
 		// https://ubsicap.github.io/usfm/attributes/index.html
 		while (true) {
 			const id = this.tokenizer.peek();
-			if (id.tag != "id") break;
+			if (id.tag !== "id") break;
 			this.tokenizer.next();
 
 			const n = this.tokenizer.peek();
-			if (n.tag == "kv_sep") {
+			if (n.tag === "kv_sep") {
 				this.tokenizer.next();
 				this.expect("id", "Expected attribute value");
 			} else {
@@ -113,7 +113,7 @@ export class Parser {
 	}
 
 	text(token: Token): Parsed {
-		if (token.tag != "text") return;
+		if (token.tag !== "text") return;
 
 		const text = this.tokenizer.view(token);
 		this.ast.push({ text });
@@ -124,24 +124,25 @@ export class Parser {
 		if (!tag || !whitelist.markers.has(tag.tag)) return;
 
 		const maybeText = this.tokenizer.peek();
-		if (maybeText.tag == "text") {
+		if (maybeText.tag === "text") {
 			const text = this.tokenizer.view(maybeText);
-			if (tag.tag == "id") {
+			if (tag.tag === "id") {
 				this.tokenizer.next();
 				const match = text.match(/^\w+/);
 				if (match) this.ast.push({ book: match[0] });
 				this.section = 1;
 				return true;
-			} else if (tag.tag == "ms") {
+			}
+			if (tag.tag === "ms") {
 				this.tokenizer.next();
 				this.ast.push({ bookSection: (this.section++).toString() });
 				return true;
 			}
 			const match = text.match(/^[ \t]*(\d+\s*)/);
-			if (match && match[1]) {
+			if (match?.[1]) {
 				this.tokenizer.pos = maybeText.start + match[1].length;
-				const n = parseInt(match[1]);
-				if (tag.tag == "c") {
+				const n = Number.parseInt(match[1]);
+				if (tag.tag === "c") {
 					this.ast.push({ chapter: n });
 				} else {
 					this.ast.push({ verse: n });
@@ -165,14 +166,14 @@ export class Parser {
 
 		const next = this.tokenizer.peek();
 
-		if (tag.tag == "b") this.ast.push({ break: "" });
+		if (tag.tag === "b") this.ast.push({ break: "" });
 		else if (["pm", "pmo", "pmr", "pmc"].includes(tag.tag)) {
 			this.ast.push({ paragraph: "", class: "block" });
 		} else if (Tag.isHeading(tag)) {
 			const text =
-				next.tag == "text" ? this.tokenizer.view(this.tokenizer.next()) : "";
-			if (next.tag != "text") return; // ignore
-			if (tag.tag == "s") {
+				next.tag === "text" ? this.tokenizer.view(this.tokenizer.next()) : "";
+			if (next.tag !== "text") return; // ignore
+			if (tag.tag === "s") {
 				if (tag.n && (tag.n < 0 || tag.n > 4)) {
 					throw this.appendErr(token, "Invalid heading level");
 				}
@@ -181,9 +182,9 @@ export class Parser {
 					level: ((tag.n ?? 1) + offset) as HeadingLevel,
 					text,
 				});
-			} else if (tag.tag == "d") {
+			} else if (tag.tag === "d") {
 				this.ast.push({ text });
-			} else if (tag.tag == "toc" && tag.n == 1) {
+			} else if (tag.tag === "toc" && tag.n === 1) {
 				this.ast.push({ level: 1, text });
 			}
 		} else {
@@ -224,10 +225,10 @@ export class Parser {
 
 	next(): Parsed {
 		const token = this.tokenizer.next();
-		if (token.tag == "eof") return "eof";
+		if (token.tag === "eof") return "eof";
 
 		let tag: Tag.Tag | undefined;
-		if (token.tag == "tag_open") tag = Tag.init(this.tokenizer.view(token));
+		if (token.tag === "tag_open") tag = Tag.init(this.tokenizer.view(token));
 
 		return (
 			this.marker(token, tag) ||
@@ -242,7 +243,7 @@ export class Parser {
 	document(): Document {
 		while (true) {
 			try {
-				if (this.next() == "eof") break;
+				if (this.next() === "eof") break;
 			} catch {
 				// Code had to bail out so can gracefully handle next state.
 				// Nothing to do since error was recorded into `this.errors`.

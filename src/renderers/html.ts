@@ -23,15 +23,15 @@ export class Html extends Ast.Visitor {
 
 	startTag(
 		tag: string,
-		inline: boolean = false,
+		inline = false,
 		attributes?: { [key: string]: string | undefined },
 	) {
 		if (this.inParagraph && !inline) this.endParagraph();
 		this.write(`<${tag}`);
-		Object.entries(attributes ?? {}).forEach(([k, v]) => {
+		for (const [k, v] of Object.entries(attributes ?? {})) {
 			if (v) this.write(` ${k}=\"${v}\"`);
-		});
-		this.write(`>`);
+		}
+		this.write(">");
 	}
 
 	endTag(tag: string) {
@@ -90,7 +90,7 @@ export class Html extends Ast.Visitor {
 
 	isInline(node: Ast.Node): boolean {
 		return (
-			typeof node == "string" ||
+			typeof node === "string" ||
 			"verse" in node ||
 			("text" in node && !("level" in node))
 		);
@@ -102,7 +102,7 @@ export class Html extends Ast.Visitor {
 			let n = ast[i];
 			const next = ast[i + 1];
 			// Replace trailing space with single whitespace.
-			if (typeof n == "string") n = n.replace(/\s+$/, " ");
+			if (typeof n === "string") n = n.replace(/\s+$/, " ");
 			// Skip breaks before non-inline elements.
 			else if ("break" in n && !this.isInline(next)) continue;
 			else if ("text" in n) n.text = n.text.replace(/\s+$/, " ");

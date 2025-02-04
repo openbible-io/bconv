@@ -3,10 +3,10 @@ export type Tag = { tag: string; n?: number };
 
 export function init(s: string): Tag {
 	const match = s.match(/^\\([^0-9]*)([0-9]+)?(-e|-s|\*)?$/);
-	if (!match) throw Error("Invalid tag: " + s);
+	if (!match) throw Error(`Invalid tag: ${s}`);
 
 	const res: Tag = { tag: match[1] + (match[3] ?? "") };
-	if (match[2]) res.n = parseInt(match[2]);
+	if (match[2]) res.n = Number.parseInt(match[2]);
 	return res;
 }
 

@@ -16,9 +16,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun test
-      - uses: openbible-io/bump-and-publish@v0.3.2
+      - uses: openbible-io/bump-and-publish@v0.3.3
         with:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

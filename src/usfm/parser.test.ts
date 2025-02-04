@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import { parse } from "./index.ts";
 import type { Ast } from "../ast.ts";
-import type { Error } from "./parser.ts";
+import { parse } from "./index.ts";
+import type { ParseError } from "./parser.ts";
 
 function expectElements(
 	s: string,
 	expected: Ast,
-	expectedErrors: Error[] = [],
+	expectedErrors: ParseError[] = [],
 ) {
 	const parsed = parse(s);
 	expect(parsed.errors).toEqual(expectedErrors);

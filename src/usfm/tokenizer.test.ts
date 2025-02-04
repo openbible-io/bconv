@@ -6,12 +6,12 @@ function collectTokens(s: string) {
 	const res: Token[] = [];
 
 	let t: Token;
-	while ((t = tokenizer.next()).tag != "eof") res.push(t);
+	while ((t = tokenizer.next()).tag !== "eof") res.push(t);
 
 	return res;
 }
 
-type Expected = { tag: string; text?: string };
+type Expected = { tag: Token["tag"]; text?: string };
 function expectTokens(s: string, expected: Expected[]) {
 	collectTokens(s).forEach((actual, i) => {
 		const exp = expected[i];
@@ -55,7 +55,7 @@ test("single attribute tag", () => {
 });
 
 test("empty attribute tag", () => {
-	const s = `\\word hello|\\word*`;
+	const s = "\\word hello|\\word*";
 	expectTokens(s, [
 		{ tag: "tag_open" },
 		{ tag: "text" },
@@ -82,7 +82,7 @@ test("attributes with spaces", () => {
 });
 
 test("milestones", () => {
-	const s = `\\v 1 \\zaln-s\\*\\w In\\w*\\zaln-e\\*there`;
+	const s = "\\v 1 \\zaln-s\\*\\w In\\w*\\zaln-e\\*there";
 	expectTokens(s, [
 		{ tag: "tag_open" },
 		{ tag: "text" },
@@ -98,7 +98,7 @@ test("milestones", () => {
 });
 
 test("self closing tag", () => {
-	expectTokens(`\\zaln-s hello\\*`, [
+	expectTokens("\\zaln-s hello\\*", [
 		{ tag: "tag_open", text: "\\zaln-s" },
 		{ tag: "text", text: "hello" },
 		{ tag: "tag_close", text: "\\*" },

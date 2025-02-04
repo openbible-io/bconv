@@ -36,8 +36,8 @@ export class Tokenizer {
 			len += 1;
 			if (!byte) return len;
 			for (let i = 0; i < delimiters.length; i++) {
-				if (byte == delimiters[i]) {
-					if (byte == "*") {
+				if (byte === delimiters[i]) {
+					if (byte === "*") {
 						// Consume * for ending tags
 						len += 1;
 					} else {
@@ -79,10 +79,10 @@ export class Tokenizer {
 			res.end = this.pos;
 			return res;
 		}
-		if (next_c == "\\") {
+		if (next_c === "\\") {
 			this.in_attribute = false;
 			this.readUntilDelimiters(Tokenizer.whitespace.concat("*", "\\", "|"));
-			if (this.buffer[this.pos - 1] != "*") {
+			if (this.buffer[this.pos - 1] !== "*") {
 				res.end = this.pos;
 				res.tag = "tag_open";
 				this.eatSpaceN(1);
@@ -91,27 +91,28 @@ export class Tokenizer {
 				res.end = this.pos;
 				res.tag = "tag_close";
 			}
-		} else if (next_c == "|") {
+		} else if (next_c === "|") {
 			this.in_attribute = true;
 			res.tag = "attribute_start";
 			this.eatSpace();
 		} else if (this.in_attribute) {
-			if (next_c == "=") {
+			if (next_c === "=") {
 				res.tag = "kv_sep";
 				this.eatSpace();
 				return res;
-			} else if (next_c == '"') {
+			}
+			if (next_c === '"') {
 				let last_backslash = false;
 				while (true) {
 					const c = this.readByte();
 					if (!c) break;
-					if (c == '"' && !last_backslash) {
+					if (c === '"' && !last_backslash) {
 						res.start += 1;
 						res.end = this.pos - 1;
 						res.tag = "id";
 						break;
 					}
-					last_backslash = c == "\\";
+					last_backslash = c === "\\";
 				}
 				this.eatSpace();
 			} else {

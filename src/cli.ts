@@ -1,9 +1,9 @@
+import { readFileSync } from "node:fs";
+import { extname } from "node:path";
 import { stdout } from "node:process";
 import { program } from "commander";
 import type { Ast } from "./ast.ts";
 import * as lib from "./index.ts";
-import { extname } from "node:path";
-import { readFileSync } from "node:fs";
 
 program
 	.description("render Bible file to HTML")
@@ -16,7 +16,7 @@ program
 			const file = readFileSync(fname, "utf8");
 			ast = lib.usfm.parseAndPrintErrors(file);
 		} else {
-			throw Error("unknown file type: " + fname);
+			throw Error(`unknown file type: ${fname}`);
 		}
 		if (options.ast) {
 			for (let i = 0; i < ast.length; i++) console.log(JSON.stringify(ast[i]));

@@ -1,7 +1,7 @@
 # bconv
 
 [![GitHub license](https://img.shields.io/github/license/openbible-io/bconv?style=for-the-badge)](./LICENSE.md)
-[![jsr version](https://img.shields.io/jsr/v/@openbible/bconv.svg?style=for-the-badge)](https://jsr.io/@openbible/bconv)
+[![NPM Version](https://img.shields.io/npm/v/%40openbible%2Fbconv?style=for-the-badge)](https://npmjs.com/package/@openbible/bconv)
 
 Convert common Bible formats to a standard Ast. Available as a library or CLI.
 
@@ -20,8 +20,3 @@ Convert common Bible formats to a standard Ast. Available as a library or CLI.
 ## Ast
 
 See [the type.](./src/ast.ts)
-
-> [!NOTE]
-> If you know of any ancient Biblical manuscripts that have _any_ formatting
-> that does not fit this model, please file an issue and I will consider
-> amending the model!

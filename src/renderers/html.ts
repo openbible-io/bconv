@@ -89,8 +89,11 @@ export class Html extends Ast.Visitor {
 	}
 
 	isInline(node: Ast.Node): boolean {
-		return typeof node == "string" || "verse" in node ||
-			("text" in node && !("level" in node));
+		return (
+			typeof node == "string" ||
+			"verse" in node ||
+			("text" in node && !("level" in node))
+		);
 	}
 
 	override visit(ast: Ast.Ast) {

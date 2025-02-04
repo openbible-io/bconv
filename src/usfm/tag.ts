@@ -208,12 +208,14 @@ export function isClose(t: Tag) {
 }
 
 export function validAttributes(t: Tag): string[] {
-	return {
-		w: ["lemma", "strong", "srcloc"],
-		rb: ["gloss"],
-		xt: ["link-href"],
-		fig: ["alt", "src", "size", "loc", "copy", "ref"],
-	}[t.tag] || [];
+	return (
+		{
+			w: ["lemma", "strong", "srcloc"],
+			rb: ["gloss"],
+			xt: ["link-href"],
+			fig: ["alt", "src", "size", "loc", "copy", "ref"],
+		}[t.tag] || []
+	);
 }
 
 export function defaultAttribute(t: Tag) {

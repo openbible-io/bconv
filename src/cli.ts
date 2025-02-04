@@ -3,6 +3,7 @@ import { program } from "commander";
 import type { Ast } from "./ast.ts";
 import * as lib from "./index.ts";
 import { extname } from "node:path";
+import { readFileSync } from "node:fs";
 
 program
 	.description("render Bible file to HTML")
@@ -12,7 +13,7 @@ program
 		let ast: Ast;
 		const ext = extname(fname.toLowerCase());
 		if ([".usfm", ".sfm"].includes(ext)) {
-			const file = Deno.readTextFileSync(fname);
+			const file = readFileSync(fname, "utf8");
 			ast = lib.usfm.parseAndPrintErrors(file);
 		} else {
 			throw Error("unknown file type: " + fname);

@@ -11,11 +11,13 @@ export type VerseNode = { verse: number };
 
 // deno-lint-ignore no-explicit-any
 export type TextAttributes = { [key: string]: any };
-export type TextNode = string | {
-	text: string;
-	/** Language, parsing, lemma, transliteration, mapping, footnotes, etc. */
-	attributes?: TextAttributes;
-};
+export type TextNode =
+	| string
+	| {
+			text: string;
+			/** Language, parsing, lemma, transliteration, mapping, footnotes, etc. */
+			attributes?: TextAttributes;
+	  };
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type HeadingNode = {
 	level: HeadingLevel;

@@ -6,7 +6,7 @@ export type Document = { ast: Ast; errors: Error[] };
 export type Error = {
 	token: Token;
 	kind:
-		| { "expected_self_close": Token }
+		| { expected_self_close: Token }
 		| "Expected attribute value"
 		| "Expected verse or chapter number"
 		| "Invalid heading level";
@@ -14,12 +14,7 @@ export type Error = {
 export type Parsed = true | "eof" | undefined;
 
 const whitelist = {
-	markers: new Set([
-		"c",
-		"v",
-		"id",
-		"ms",
-	]),
+	markers: new Set(["c", "v", "id", "ms"]),
 	inline: new Set([
 		"w", // word
 		"qs", // selah
@@ -174,9 +169,8 @@ export class Parser {
 		else if (["pm", "pmo", "pmr", "pmc"].includes(tag.tag)) {
 			this.ast.push({ paragraph: "", class: "block" });
 		} else if (Tag.isHeading(tag)) {
-			const text = next.tag == "text"
-				? this.tokenizer.view(this.tokenizer.next())
-				: "";
+			const text =
+				next.tag == "text" ? this.tokenizer.view(this.tokenizer.next()) : "";
 			if (next.tag != "text") return; // ignore
 			if (tag.tag == "s") {
 				if (tag.n && (tag.n < 0 || tag.n > 4)) {
@@ -235,12 +229,14 @@ export class Parser {
 		let tag: Tag.Tag | undefined;
 		if (token.tag == "tag_open") tag = Tag.init(this.tokenizer.view(token));
 
-		return this.marker(token, tag) ||
+		return (
+			this.marker(token, tag) ||
 			this.milestone(token, tag) ||
 			this.inline(token, tag) ||
 			this.paragraph(token, tag) ||
 			this.character(token, tag) ||
-			this.text(token);
+			this.text(token)
+		);
 	}
 
 	document(): Document {

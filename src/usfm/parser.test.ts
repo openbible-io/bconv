@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { parse } from "./index.ts";
 import type { Ast } from "../ast.ts";
-import type { Error } from './parser.ts';
+import type { Error } from "./parser.ts";
 
 function expectElements(
 	s: string,
@@ -28,10 +28,7 @@ test("single attribute tag", () => {
 });
 
 test("empty attribute tag", () => {
-	expectElements("\\v 1\\w hello|\\w*", [
-		{ verse: 1 },
-		{ text: "hello" },
-	]);
+	expectElements("\\v 1\\w hello|\\w*", [{ verse: 1 }, { text: "hello" }]);
 });
 
 test("milestones", () => {

@@ -86,7 +86,8 @@ export class Tokenizer {
 				res.end = this.pos;
 				res.tag = "tag_open";
 				this.eatSpaceN(1);
-			} else { // End tag like `\w*` or '\*';
+			} else {
+				// End tag like `\w*` or '\*';
 				res.end = this.pos;
 				res.tag = "tag_close";
 			}

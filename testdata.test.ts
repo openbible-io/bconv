@@ -1,12 +1,13 @@
-import { expect } from "jsr:@std/expect";
+import { expect, test } from "bun:test";
 import { usfm } from "./src/index.ts";
 import { join } from "node:path";
+import { readdirSync, readFileSync } from 'node:fs';
 
-Deno.test("usfm BSB", () => {
-	for (const dir of Deno.readDirSync("testdata")) {
-		if (!dir.name.endsWith("BSB.usfm")) continue;
+test("usfm BSB", () => {
+	for (const dir of readdirSync("testdata")) {
+		if (!dir.endsWith("BSB.usfm")) continue;
 
-		const s = Deno.readTextFileSync(join("testdata", dir.name));
+		const s = readFileSync(join("testdata", dir), 'utf8');
 		const parsed = usfm.parse(s);
 		expect(parsed.errors).toEqual([]);
 	}

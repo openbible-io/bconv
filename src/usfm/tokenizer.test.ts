@@ -1,4 +1,4 @@
-import { expect } from "jsr:@std/expect";
+import { expect, test } from "bun:test";
 import { type Token, Tokenizer } from "./tokenizer.ts";
 
 function collectTokens(s: string) {
@@ -23,14 +23,14 @@ function expectTokens(s: string, expected: Expected[]) {
 	});
 }
 
-Deno.test("single simple tag", () => {
+test("single simple tag", () => {
 	expectTokens("\\id GEN EN_ULT en_English_ltr", [
 		{ tag: "tag_open", text: "\\id" },
 		{ tag: "text", text: "GEN EN_ULT en_English_ltr" },
 	]);
 });
 
-Deno.test("two simple tags", () => {
+test("two simple tags", () => {
 	const s = `\\id GEN EN_ULT en_English_ltr
 \\usfm 3.0`;
 	expectTokens(s, [
@@ -41,7 +41,7 @@ Deno.test("two simple tags", () => {
 	]);
 });
 
-Deno.test("single attribute tag", () => {
+test("single attribute tag", () => {
 	const s = '\\word hello |   x-occurences  =   "1"\\word*';
 	expectTokens(s, [
 		{ tag: "tag_open", text: "\\word" },
@@ -54,7 +54,7 @@ Deno.test("single attribute tag", () => {
 	]);
 });
 
-Deno.test("empty attribute tag", () => {
+test("empty attribute tag", () => {
 	const s = `\\word hello|\\word*`;
 	expectTokens(s, [
 		{ tag: "tag_open" },
@@ -64,7 +64,7 @@ Deno.test("empty attribute tag", () => {
 	]);
 });
 
-Deno.test("attributes with spaces", () => {
+test("attributes with spaces", () => {
 	const s = `\\zaln-s|x-lemma="a b" x-abc="123" \\*\\zaln-e\\*`;
 	expectTokens(s, [
 		{ tag: "tag_open" },
@@ -81,7 +81,7 @@ Deno.test("attributes with spaces", () => {
 	]);
 });
 
-Deno.test("milestones", () => {
+test("milestones", () => {
 	const s = `\\v 1 \\zaln-s\\*\\w In\\w*\\zaln-e\\*there`;
 	expectTokens(s, [
 		{ tag: "tag_open" },
@@ -97,7 +97,7 @@ Deno.test("milestones", () => {
 	]);
 });
 
-Deno.test("self closing tag", () => {
+test("self closing tag", () => {
 	expectTokens(`\\zaln-s hello\\*`, [
 		{ tag: "tag_open", text: "\\zaln-s" },
 		{ tag: "text", text: "hello" },
@@ -105,7 +105,7 @@ Deno.test("self closing tag", () => {
 	]);
 });
 
-Deno.test("line breaks", () => {
+test("line breaks", () => {
 	const s = `\\v 1 \\w In\\w*
 \\w the\\w* 012
 \\w beginning\\w*.`;
@@ -128,7 +128,7 @@ Deno.test("line breaks", () => {
 	]);
 });
 
-Deno.test("whitespace", () => {
+test("whitespace", () => {
 	const s = "\\p  \n  \nasdf\n\n\n";
 
 	expectTokens(s, [

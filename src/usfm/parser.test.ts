@@ -1,6 +1,7 @@
-import { expect } from "jsr:@std/expect";
+import { expect, test } from "bun:test";
 import { parse } from "./index.ts";
 import type { Ast } from "../ast.ts";
+import type { Error } from './parser.ts';
 
 function expectElements(
 	s: string,
@@ -12,28 +13,28 @@ function expectElements(
 	expect(parsed.ast).toEqual(expected);
 }
 
-Deno.test("whitespace", () => {
+test("whitespace", () => {
 	expectElements("\\p  \n  \nasdf\n\n\n", [
 		{ paragraph: "" },
 		{ text: "\n  \nasdf\n\n\n" },
 	]);
 });
 
-Deno.test("single attribute tag", () => {
+test("single attribute tag", () => {
 	expectElements('\\v 1\\qs Selah |   x-occurences  =   "1" \\qs*', [
 		{ verse: 1 },
 		{ text: "Selah " },
 	]);
 });
 
-Deno.test("empty attribute tag", () => {
+test("empty attribute tag", () => {
 	expectElements("\\v 1\\w hello|\\w*", [
 		{ verse: 1 },
 		{ text: "hello" },
 	]);
 });
 
-Deno.test("milestones", () => {
+test("milestones", () => {
 	expectElements("\\zaln-s\\*\\w In \\w*side\\zaln-e\\* there", [
 		{ text: "In " },
 		{ text: "side" },
@@ -41,17 +42,17 @@ Deno.test("milestones", () => {
 	]);
 });
 
-Deno.test("footnote with inline fqa", () => {
+test("footnote with inline fqa", () => {
 	expectElements("Hello\\f +\\ft footnote:   \\fqa some text\\fqa*.\\f*", [
 		{ text: "Hello" },
 	]);
 });
 
-Deno.test("footnote with block fqa", () => {
+test("footnote with block fqa", () => {
 	expectElements("\\f +\\fq a\\ft b\\fqa c\\ft d\\f*", []);
 });
 
-Deno.test("paragraphs", () => {
+test("paragraphs", () => {
 	const s = `\\c 1
 \\p
 \\v 1 verse1

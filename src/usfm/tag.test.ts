@@ -1,7 +1,7 @@
-import { expect } from "jsr:@std/expect";
+import { expect, test } from "bun:test";
 import * as Tag from "./tag.ts";
 
-Deno.test("tag init", () => {
+test("tag init", () => {
 	expect(Tag.init("\\v")).toEqual({ tag: "v" });
 	expect(Tag.init("\\toc3")).toEqual({ tag: "toc", n: 3 });
 	expect(Tag.init("\\ts-s")).toEqual({ tag: "ts-s" });

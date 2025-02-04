@@ -1,0 +1,10 @@
+{
+	"name": "@openbible/bconv",
+	"version": "0.0.0",
+	"main": "./src/index.ts",
+	"dependencies": {
+		"@types/bun": "^1.2.2",
+		"chalk": "^5.4.1",
+		"commander": "^13.1.0"
+	}
+}

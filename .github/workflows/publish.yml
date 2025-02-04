@@ -17,5 +17,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
       - run: bun test
       - uses: openbible-io/bump-and-publish@v0.2.0
